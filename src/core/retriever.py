@@ -6,11 +6,16 @@ from llama_index.core.vector_stores.types import MetadataInfo, VectorStoreInfo
 #     EXAMPLES,
 #     SUFFIX,
 # )
+
+from llama_index.core.llms import LLM
+from llama_index.core.schema import BaseNode
+from llama_index.core.base.base_retriever import BaseRetriever
 from llama_index.core.prompts.base import PromptTemplate
 from llama_index.core.prompts.prompt_type import PromptType
 from llama_index.core.retrievers import RecursiveRetriever
 from llama_index.core.prompts.base import PromptTemplate
 from llama_index.core.prompts.prompt_type import PromptType
+from llama_index.core.indices.base import BaseIndex
 from llama_index.core.vector_stores.types import (
     FilterOperator,
     MetadataFilter,
@@ -18,6 +23,7 @@ from llama_index.core.vector_stores.types import (
     VectorStoreInfo,
     VectorStoreQuerySpec,
 )
+from typing import Dict
 
 CUSTOM_META_DESCRIPTION = f"Section in which the documentation page is found. Can be one of 'edgeql_and_sdl', 'edgedb_general', 'ddl', 'integrations' or 'other'."
 
@@ -132,12 +138,12 @@ Structured Request:
 
 
 def build_retriever(
-    index,
-    full_nodes_dict,
-    llm,
+    index: BaseIndex,
+    full_nodes_dict: Dict[str, BaseNode],
+    llm: LLM,
     verbose: bool = True,
     top_k: int = 10,
-):
+) -> BaseRetriever:
 
     retriever = VectorIndexAutoRetriever(
         index,

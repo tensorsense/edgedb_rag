@@ -6,8 +6,8 @@ from langchain_core.prompts import (
 )
 
 from langchain_core.runnables import RunnableSerializable
-
 from langchain_core.pydantic_v1 import BaseModel, Field
+from langchain_core.language_models.chat_models import BaseChatModel
 
 from llama_index.core.postprocessor.types import BaseNodePostprocessor
 from llama_index.core.schema import NodeWithScore, QueryBundle, TextNode
@@ -27,7 +27,9 @@ class FilteredContext(BaseModel):
     )
 
 
-def build_context_filter_chain(langchain_light, langchain_heavy):
+def build_context_filter_chain(
+    langchain_light: BaseChatModel, langchain_heavy: BaseChatModel
+) -> RunnableSerializable:
 
     system_template = """You are an assistant that helps filter pieces of EdgeDB documentation.
         Below you will find several pieces of official EdgeDB documentation, each denoted by ---, as well as a user query denoted by ***.
@@ -133,7 +135,9 @@ class ContextFilter(BaseNodePostprocessor):
         return filtered_nodes
 
 
-def build_context_filter(langchain_light, langchain_heavy):
+def build_context_filter(
+    langchain_light: BaseChatModel, langchain_heavy: BaseChatModel
+) -> ContextFilter:
     context_filter_chain = build_context_filter_chain(langchain_light, langchain_heavy)
     context_filter = ContextFilter(chain=context_filter_chain)
 

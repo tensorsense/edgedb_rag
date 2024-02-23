@@ -4,7 +4,12 @@ from llama_index.core import PromptTemplate
 from llama_index.core.base.response.schema import RESPONSE_TYPE
 from llama_index.core.schema import QueryBundle
 from llama_index.core.query_engine import RetrieverQueryEngine
+from llama_index.core.base.base_retriever import BaseRetriever
+from llama_index.core.postprocessor.types import BaseNodePostprocessor
+from llama_index.core.llms import LLM
 
+from langchain_core.runnables import RunnableSerializable
+from langchain_core.language_models.chat_models import BaseChatModel
 from langchain.output_parsers import PydanticOutputParser
 from langchain_core.pydantic_v1 import BaseModel, Field
 from langchain_core.prompts import (
@@ -63,7 +68,9 @@ class VerifiedResponse(BaseModel):
     )
 
 
-def build_response_chain(langchain_light, langchain_heavy):
+def build_response_chain(
+    langchain_light: BaseChatModel, langchain_heavy: BaseChatModel
+) -> RunnableSerializable:
     system_template = """You are the assistant that helps rate faithfulness of EdgeDB QA system responses.
         You will be provided a user query denoted by ***, and the QA system response denoted by <<>>.
         You will also receive context made of pieces of official EdgeDB documentation denoted by ---.
@@ -105,11 +112,11 @@ def build_response_chain(langchain_light, langchain_heavy):
 
 class FilteredQueryEngine(RetrieverQueryEngine):
     def __init__(self, **kwargs) -> None:
-        self.chain = None
+        self.chain: RunnableSerializable = None
         super().__init__(**kwargs)
 
     @classmethod
-    def from_args(cls, chain, *args, **kwargs):
+    def from_args(cls, chain: RunnableSerializable, *args, **kwargs):
         instance = super().from_args(*args, **kwargs)
         instance.chain = chain
         return instance
@@ -172,8 +179,12 @@ class FilteredQueryEngine(RetrieverQueryEngine):
 
 
 def build_query_engine(
-    retriever, llm, postprocessors, langchain_light, langchain_heavy
-):
+    retriever: BaseRetriever,
+    llm: LLM,
+    postprocessors: BaseNodePostprocessor,
+    langchain_light: BaseChatModel,
+    langchain_heavy: BaseChatModel,
+) -> FilteredQueryEngine:
 
     response_chain = build_response_chain(langchain_light, langchain_heavy)
 

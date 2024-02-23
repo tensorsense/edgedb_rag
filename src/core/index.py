@@ -2,6 +2,7 @@ from pathlib import Path
 import re
 import json
 from tqdm import tqdm
+from typing import Tuple, Dict
 
 import chromadb
 from llama_index.vector_stores.chroma import ChromaVectorStore
@@ -12,8 +13,9 @@ from llama_index.core import (
     VectorStoreIndex,
     Document,
 )
-from llama_index.core.schema import IndexNode, TextNode
-
+from llama_index.core.schema import IndexNode, TextNode, BaseNode
+from llama_index.core.indices.base import BaseIndex
+from chromadb.api.models.Collection import Collection
 
 # Section mapping for each document in the index
 
@@ -77,7 +79,7 @@ DOC_MAP = {
 }
 
 
-def extract_non_code_text(markdown_string):
+def extract_non_code_text(markdown_string: str) -> str:
     # Define a regex pattern to match triple backticks code blocks
     code_block_pattern = r"```.*?```"
 
@@ -87,7 +89,11 @@ def extract_non_code_text(markdown_string):
     return non_code_text
 
 
-def save_to_disk(persist_path: Path, collection_name: str, lib_path: Path):
+def save_to_disk(
+    lib_path: Path,
+    persist_path: Path,
+    collection_name: str,
+) -> Tuple[BaseIndex, Dict[str, BaseNode]]:
     documents = SimpleDirectoryReader(lib_path.as_posix(), recursive=True).load_data()
 
     # Set category for each document
@@ -148,7 +154,11 @@ def save_to_disk(persist_path: Path, collection_name: str, lib_path: Path):
     return index, full_nodes_dict
 
 
-def load_from_disk(persist_path: Path, collection_name: str, lib_path: Path):
+def load_from_disk(
+    lib_path: Path,
+    persist_path: Path,
+    collection_name: str,
+) -> Tuple[BaseIndex, Dict[str, BaseNode]]:
     # load from disk
     chroma_client = chromadb.PersistentClient(path=persist_path.as_posix())
     chroma_collection = chroma_client.get_or_create_collection(collection_name)
@@ -169,7 +179,7 @@ def load_from_disk(persist_path: Path, collection_name: str, lib_path: Path):
     return index, full_nodes_dict
 
 
-def update_meta(chroma_collection, root_path: Path):
+def update_meta(chroma_collection: Collection, root_path: Path) -> Collection:
     # Add updated sections to metadata
     doc_map_keys = list(DOC_MAP.keys())
 
