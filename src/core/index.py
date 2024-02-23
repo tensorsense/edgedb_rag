@@ -185,13 +185,3 @@ def update_meta(chroma_collection, root_path: Path):
         chroma_collection.update(ids=ids[i], metadatas=meta)
 
     return chroma_collection
-
-
-def build_index(persist_path: Path, collection_name, lib_path):
-
-    if persist_path.exists():
-        index, full_nodes_dict = load_from_disk(persist_path, collection_name, lib_path)
-    else:
-        index, full_nodes_dict = save_to_disk(persist_path, collection_name, lib_path)
-        
-    return index, full_nodes_dict
