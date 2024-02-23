@@ -2,7 +2,8 @@ from src.core.retriever import build_retriever
 from src.core.postprocessor import build_context_filter
 from src.core.query_engine import build_query_engine
 
-from pydantic import BaseModel
+from pydantic.v1 import BaseModel
+from llama_index.core import Settings
 from llama_index.core.llms import LLM
 from llama_index.core.embeddings import BaseEmbedding
 from llama_index.llms.azure_openai import AzureOpenAI

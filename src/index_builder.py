@@ -1,5 +1,5 @@
 from pathlib import Path
-from core.index import load_from_disk, save_to_disk
+from src.core.index import load_from_disk, save_to_disk
 
 
 def build_index(persist_path: Path, collection_name, lib_path):
