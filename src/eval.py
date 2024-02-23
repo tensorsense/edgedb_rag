@@ -70,13 +70,13 @@ class PydanticResponse(BaseModel):
 
 
 def run_queries(query_engine, queries: List[str], result_path: Path):
-
     all_responses = []
 
     for query in tqdm(queries):
         try:
             response = PydanticResponse.from_llamaindex_response(
-                llamaindex_response=query_engine.query(query)
+                query=query,
+                llamaindex_response=query_engine.query(query),
             )
         except Exception as e:
             print(e)
@@ -85,6 +85,8 @@ def run_queries(query_engine, queries: List[str], result_path: Path):
             f.write(f"{response.json()}\n")
 
         all_responses.append(response)
+
+    return all_responses
 
 
 class Evaluator:
@@ -120,5 +122,3 @@ class Evaluator:
             "answer_relevancy": answer_relevancy,
             "context_relevancy": context_relevancy,
         }
-    
-

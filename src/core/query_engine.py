@@ -116,8 +116,6 @@ class FilteredQueryEngine(RetrieverQueryEngine):
 
     def _query(self, query_bundle: QueryBundle) -> RESPONSE_TYPE:
         response = super()._query(query_bundle)
-
-        print("verify response")
         verified_response = self.chain.invoke(
             {
                 "query": query_bundle.query_str,
@@ -135,6 +133,7 @@ class FilteredQueryEngine(RetrieverQueryEngine):
             "references": verified_response.references,
             "is_faithful": verified_response.is_faithful,
             "reasoning": verified_response.reasoning,
+            "original_response": response.response,
         }
         response.metadata = (
             extra_info if response.metadata is None else response.metadata | extra_info
@@ -162,6 +161,7 @@ class FilteredQueryEngine(RetrieverQueryEngine):
             "references": verified_response.references,
             "is_faithful": verified_response.is_faithful,
             "reasoning": verified_response.reasoning,
+            "original_response": response.response,
         }
         response.metadata = (
             extra_info if response.metadata is None else response.metadata | extra_info

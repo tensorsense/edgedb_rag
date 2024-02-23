@@ -13,8 +13,6 @@ from llama_index.core.postprocessor.types import BaseNodePostprocessor
 from llama_index.core.schema import NodeWithScore, QueryBundle, TextNode
 from typing import Any, List, Optional
 
-# from pydantic import BaseModel, Field
-
 
 class RatedDocument(BaseModel):
     content: str = Field(description="Text of the document verbatim.")
@@ -59,7 +57,6 @@ def build_context_filter_chain(langchain_light, langchain_heavy):
             multi characters: Person;
         }}
         ```
-
         
         {format_instructions}
         """
