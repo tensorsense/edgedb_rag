@@ -1,4 +1,4 @@
-# EdgeDB Retrieval Augmented Generator
+# EdgeDB Retrieval Augmented Generator 🦙
 
 ## Overview
 
@@ -145,5 +145,34 @@ response = generator.chat(
 
 ## Run evaluation
 
+1. Run inference and store the results in `PydanticResponse`.
 
+```python
+from src.eval import PydanticResponse
 
+response = PydanticResponse.from_llamaindex_response(
+    query=query,
+    llamaindex_response=generator.query(query),
+)
+```
+
+There's a conveniece function named `run_queries` that runs an array of queries sequentially and stores the results in a JSON lines file.
+
+```python
+from src.eval import run_queries
+from datetime import datetime
+
+timestamp = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+responses = run_queries(generator, queries, Path(f"eval_{timestamp}.jsonl").resolve())
+```
+
+2. In order to do a side-by-side comparison, load the results into a pandas dataframe.
+
+```python
+import pandas as pd
+
+df1 = pd.read_json(path1, lines=True)
+df2 = pd.read_json(path2, lines=True)
+
+eval_df = pd.merge(left=df1[["query", "response"]], right=df2[["query", "response"]], how="inner", on="query", suffixes=["_1", "_2"])
+```
