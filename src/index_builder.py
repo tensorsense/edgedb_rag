@@ -12,8 +12,15 @@ def build_index(
 ) -> Tuple[BaseIndex, Dict[str, BaseNode]]:
 
     if persist_path.exists():
-        index, full_nodes_dict = load_from_disk(persist_path, collection_name, lib_path)
+        index, full_nodes_dict = load_from_disk(
+            lib_path=lib_path,
+            persist_path=persist_path,
+            collection_name=collection_name,
+        )
     else:
-        index, full_nodes_dict = save_to_disk(persist_path, collection_name, lib_path)
-
+        index, full_nodes_dict = save_to_disk(
+            lib_path=lib_path,
+            persist_path=persist_path,
+            collection_name=collection_name,
+        )
     return index, full_nodes_dict
