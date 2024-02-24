@@ -102,7 +102,46 @@ generator = build_generator(
 )
 ```
 
+`build_generator` is going to produce a LlamaIndex `ChatEngine`.
+
+It uses one more LLM call to condence previous chat history together with the last user message to form a single search query.
+It then runs that query through the RAG system to generate an answer.
+
 ## Run a query
+
+```python
+response = generator.chat(message="Tell me about a basic select", chat_history=[])
+```
+
+In order to add extra chat history, first wrap it into a `ChatMessage`.
+Note that, since this is a Pydantic object, it can be loaded directly from JSON using `.parse_raw` as well.
+
+```python
+ChatMessage(
+    role=MessageRole.ASSISTANT,
+    content="A basic `select` in EdgeDB is a command used to retrieve or compute a set of values from the database. \
+    It can be used to select primitive values, objects, or computed results.",
+),
+```
+
+Next, add chat history to the call together with the followup message.
+
+```python
+response = generator.chat(
+    chat_history=[
+        ChatMessage(
+            role=MessageRole.USER,
+            content="Tell me about a basic select",
+        ),
+        ChatMessage(
+            role=MessageRole.ASSISTANT,
+            content="A basic `select` in EdgeDB is a command used to retrieve or compute a set of values from the database. \
+            It can be used to select primitive values, objects, or computed results.",
+        ),
+    ],
+    message="What about insert?",
+)
+```
 
 ## Run evaluation
 
