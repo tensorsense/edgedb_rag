@@ -98,15 +98,17 @@ def save_to_disk(
 
     # Set category for each document
 
-    sections = set()
+    doc_map_keys = list(DOC_MAP.keys())
     docs_with_meta = []
 
     for doc in documents:
-        section = str(
-            Path(doc.metadata["file_path"]).parent.resolve().relative_to(lib_path)
+        rel_path = (
+            Path(doc.metadata["file_path"]).resolve().relative_to(lib_path).as_posix()
         )
-        doc.metadata["section"] = section
-        sections.add(section)
+        section_key = [key for key in doc_map_keys if rel_path.startswith(key)][
+            -1
+        ]  # because cli and clients
+        doc.metadata["section"] = DOC_MAP[section_key]
         docs_with_meta.append(doc)
 
     # Embed only text, store full docs
@@ -149,8 +151,6 @@ def save_to_disk(
     with full_nodes_path.open("w") as f:
         json.dump(serializable, f)
 
-    chroma_collection = update_meta(chroma_collection, lib_path)
-
     return index, full_nodes_dict
 
 
@@ -174,24 +174,36 @@ def load_from_disk(
 
     full_nodes_dict = {k: Document.parse_raw(v) for k, v in serializable.items()}
 
-    chroma_collection = update_meta(chroma_collection, lib_path)
-
     return index, full_nodes_dict
 
 
-def update_meta(chroma_collection: Collection, root_path: Path) -> Collection:
-    # Add updated sections to metadata
-    doc_map_keys = list(DOC_MAP.keys())
+def add_document(
+    index: BaseIndex,
+    full_nodes_dict: Dict[str, BaseNode],
+    persist_path: Path,
+    doc_text: str,
+    doc_section: str,
+) -> None:
 
-    metas = chroma_collection.peek(5000)["metadatas"]
-    ids = chroma_collection.peek(5000)["ids"]
+    new_doc_no_code = extract_non_code_text(doc_text)
+    doc = TextNode(text=doc_text)
+    doc.metadata["section"] = doc_section
 
-    for i, meta in enumerate(metas):
-        rel_path = Path(meta["file_path"]).resolve().relative_to(root_path).as_posix()
-        section_key = [key for key in doc_map_keys if rel_path.startswith(key)][
-            -1
-        ]  # because cli and clients
-        meta["section"] = DOC_MAP[section_key]
-        chroma_collection.update(ids=ids[i], metadatas=meta)
+    doc_info = {k: v for k, v in doc.dict().items() if k not in ["id_", "text"]}
 
-    return chroma_collection
+    index_node = IndexNode.from_text_node(
+        index_id=doc.node_id,
+        node=TextNode(
+            text=new_doc_no_code,
+            **doc_info,
+        ),
+    )
+
+    index.insert_nodes([index_node])
+    full_nodes_dict[doc.node_id] = doc
+
+    full_nodes_path = persist_path.joinpath("full_nodes.json")
+
+    serializable = {k: v.json() for k, v in full_nodes_dict.items()}
+    with full_nodes_path.open("w") as f:
+        json.dump(serializable, f)
