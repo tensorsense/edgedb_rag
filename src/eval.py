@@ -13,6 +13,10 @@ from llama_index.core.evaluation import (
 
 from llama_index.core import PromptTemplate
 from llama_index.core.base.response.schema import Response
+from llama_index.core.base.base_query_engine import BaseQueryEngine
+from llama_index.core.base.response.schema import Response
+from llama_index.core.chat_engine.types import BaseChatEngine, AgentChatResponse
+
 
 ANSWER_RELEVANCY_TEMPLATE = PromptTemplate(
     "Your task is to evaluate if the response is relevant to the query.\n"
@@ -52,35 +56,39 @@ class PydanticResponse(BaseModel):
 
     @classmethod
     def from_llamaindex_response(cls, query, llamaindex_response):
+        if isinstance(llamaindex_response, AgentChatResponse):
+            metadata = llamaindex_response.sources[0].raw_output.metadata
+        elif isinstance(llamaindex_response, Response):
+            metadata = llamaindex_response.metadata
+        else:
+            raise NotImplementedError
         return cls(
             query=query,
             response=llamaindex_response.response,
-            metadata=llamaindex_response.metadata,
+            metadata=metadata,
             source_nodes=[node.node for node in llamaindex_response.source_nodes],
         )
 
-    def to_llamaindex_response(self):
-        return Response(
-            response=self.response,
-            metadata=self.metadata,
-            source_nodes=[
-                NodeWithScore(node=node, score=1.0) for node in self.source_nodes
-            ],
-        )
 
-
-def run_queries(query_engine, queries: List[str], result_path: Path):
+def run_queries(generator, queries: List[str], result_path: Path):
     all_responses = []
 
     for query in tqdm(queries):
         try:
-            response = PydanticResponse.from_llamaindex_response(
-                query=query,
-                llamaindex_response=query_engine.query(query),
-            )
+            if issubclass(type(generator), BaseChatEngine):
+                llamaindex_response = generator.chat(message=query, chat_history=[])
+            elif issubclass(type(generator), BaseQueryEngine):
+                llamaindex_response = generator.query(query)
+            else:
+                raise NotImplementedError
         except Exception as e:
             print(e)
             continue
+
+        response = PydanticResponse.from_llamaindex_response(
+                query=query,
+                llamaindex_response=llamaindex_response,
+            )
         with result_path.open("+a") as f:
             f.write(f"{response.json()}\n")
 
