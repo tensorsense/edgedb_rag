@@ -10,11 +10,13 @@ from llama_index.core.llms import LLM
 from llama_index.core.embeddings import BaseEmbedding
 from llama_index.llms.azure_openai import AzureOpenAI
 from llama_index.embeddings.azure_openai import AzureOpenAIEmbedding
+from llama_index.llms.openai import OpenAI
+from llama_index.embeddings.openai import OpenAIEmbedding
 from llama_index.core.chat_engine import CondenseQuestionChatEngine
 from llama_index.core.chat_engine.types import BaseChatEngine
 
 from langchain_core.language_models.chat_models import BaseChatModel
-from langchain_openai import AzureChatOpenAI
+from langchain_openai import AzureChatOpenAI, ChatOpenAI
 
 from typing import Dict
 from pydantic.v1 import BaseModel
@@ -28,8 +30,27 @@ class LLMConfig(BaseModel):
     embed_model: BaseEmbedding
 
     @classmethod
-    def from_openai_model_names(cls):
-        raise NotImplementedError
+    def from_openai_model_names(cls, light: str, heavy: str, embedding: str):
+        return cls(
+            llamaindex_light=OpenAI(
+                model=light,
+            ),
+            llamaindex_heavy=OpenAI(
+                model=heavy,
+            ),
+            langchain_light=ChatOpenAI(
+                temperature=0.1,
+                model_name=light,
+            ),
+            langchain_heavy=ChatOpenAI(
+                temperature=0.1,
+                model_name=heavy,
+            ),
+            embed_model=OpenAIEmbedding(
+                model=embedding,
+                embed_batch_size=100,
+            ),
+        )
 
     @classmethod
     def from_azure_deployments(
