@@ -1,0 +1,97 @@
+What is the most basic example of using select?
+Can I use emojis in EdgeDB?
+What scalar types does EdgeDB have?
+How do I make a byte literal?
+Can I use emojis in byte strings?
+What kinds of numeric types does EdgeDB implement?
+What is the difference between fixed size and unlimited types?
+How do I create a uuid?
+How do I make a datetime?
+How do I declare a duration?
+How do I make a json variable?
+Why can't I cast bytes to string?
+What basic scalar types exist in EdgeDB?
+How do I use an array?
+How do I get an element from an array?
+Can I cast an array to a different type?
+What is the difference between tuples and arrays?
+Can tuples be nested?
+Can arrays be put in tuples?
+How do I access a tuple element?
+How can I get a nested tuple element?
+How do I make a named tuple?
+Why should I use named elements in tuples?
+How do I cast a tuple to a different type?
+How do I cast an object to a JSON?
+Why are local datetimes special?
+What is the difference between duration, relative_duration and date_duration?
+How do I use logical operators in EdgeDB?
+How do I compare two numbers?
+Can I compare a string to a number?
+What happens if I compare two strings using < ?
+Are durations comparable?
+How do I calculate a cubic root?
+Why can't I add a limited and unlimited float?
+Can I add datetimes?
+What happens if I add different types of durations?
+How can I index a string?
+Can I get a slice of a string?
+What do negative indices mean?
+How do I concatenate two strings together?
+How do I merge arrays?
+How do I concatenate tuples?
+What's a set in EdgeDB?
+How do I make a set?
+What kinds of functions does EdgeDB implement?
+How do I get the length of a string?
+What happens if I pass a set to an element-wise function?
+What if I pass two sets to a function with two arguments?
+How do I know if a function is expecting a set as input?
+How do I get the length of an array?
+How do I calculate a min element in an array?
+What does union do?
+What does distinct do?
+Can I nest sets?
+How do I check if an element is present in an array?
+How do I check if all elements are present in an array?
+What is the EdgeDB's implementation of None?
+What does EdgeDB return when do values are present?
+Are there nulls?
+How do I test if a set is empty?
+What happens if I call a function on an empty set?
+How do I merge an empty set with a non-empty set?
+What pitfalls should I avoid when working with empty sets?
+Is there a ternary operator?
+What is the equivalent of Python's X if Y else Z in EdgeDB?
+How do I compare a set to an empty set?
+What are object properties?
+How do I query all properties of an object?
+For an object called User with a property called name, how do I get all User.name's?
+How do I get a specific property from every instance of an object?
+I have an object User with a property called Name, where Name has first_name and last_name. How do I get all last names?
+What's a backlink?
+How do I use a backlink?
+What's a path expression?
+What's a shape?
+How do I filter a query by property?
+I have an object User with a property called Favorites, where Favorites has name. How to I get all Favorites that belong to a specific user using a backlink?
+How to I find entries whose name starts with a substring?
+How do I get a mean of a set in EdgeDB?
+How can I calculate a variance of a set of values?
+How do I fetch a nested structure?
+What does @ symbol mean in front of a field name?
+Can I have nested selects?
+What does detached do?
+How do I add a computed property called above_average?
+How does with block work?
+How do I make a polymorphic query?
+What does [is Type] mean?
+How do I insert data?
+What is the best way to insert data and immediately fetch it?
+Is there a for loop in EdgeDB?
+How do I do a nested insert?
+How can I update a value of an object?
+How do I add an element to a set of values in EdgeDB?
+How do I delete an entry?
+Does EdgeDB implement upsert?
+What is the best way to write select-or-insert?

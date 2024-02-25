@@ -1,0 +1,232 @@
+This query:
+# @name UpdateTodo
+      start transaction;
+        with
+          id := <uuid>$id
+        update Todo 
+        filter .id = id
+        set {
+          text := <optional str>$text ?? .text,
+          completed := <optional bool>$completed ?? .completed
+        };
+        select Todo {
+          *
+        } filter .id = id;
+      commit;>>>SEPARATOR<<<how to make a conflict not return an error>>>SEPARATOR<<<What is meant by the following error- INSERT UNLESS CONFLICT ON does not support volatile properties?>>>SEPARATOR<<<'edgedb.Object' object has no attribute 'bytes'>>>SEPARATOR<<<Can "tuple" be iterated?>>>SEPARATOR<<<how does the filter fild in the typescript query builder works?>>>SEPARATOR<<<systemctl cat edgedb-server-3>>>SEPARATOR<<<how to use e.op>>>SEPARATOR<<<ayudame a crear las tablas del modulo default: buyer: email(index de unico), firstName, lastName, cellphone(string) y si es posible un dato que se realiza concatenando firstName con lastName llamado fullName. product: name, maxPrice(double), minPrice(double), code(index unico): string warehouse: name, code(index de unico)>>>SEPARATOR<<<how to improve the edgedb server performance by hardware, only cpu?>>>SEPARATOR<<<is there a better way to nest e.op with and ?>>>SEPARATOR<<<how partial update a row keeping other values in row same>>>SEPARATOR<<<conver array<str> to <str>>>>SEPARATOR<<<can i put comments in esdl?>>>SEPARATOR<<<How would I order on multiple items in a returned set?>>>SEPARATOR<<<how to specify the hl database to one sdl>>>SEPARATOR<<<What does `toEdgeQL` do?>>>SEPARATOR<<<Can you overload links in edgedb>>>SEPARATOR<<<Is it possible to generate Graph Ql schema from edgedb schema?>>>SEPARATOR<<<could not find SHARED_DATA_DIR in EdgeDB distribution metadata>>>SEPARATOR<<<Is it possible to link an object that may not yet exist in the DB but will eventually be added later?>>>SEPARATOR<<<Can I do a nested for loop in edgedb?>>>SEPARATOR<<<write a simple function in sdl which accept json parses it to insert to another type>>>SEPARATOR<<<how do i update the version one databse uses>>>SEPARATOR<<<where can I see all operator>>>SEPARATOR<<<`Game in User.favoriteGames` creates an array of booleans. I want a single boolean value in each row of the `games` link that indicates if the specific game is a favorite>>>SEPARATOR<<<DISTINCT query>>>SEPARATOR<<<How to empty database for a edgedb restore command>>>SEPARATOR<<<how to order by enum? like GREEN, RED, BLUE>>>SEPARATOR<<<what's wrong with function slugify(word: str) -> str LANGUAGE "plpython3u" USING ( $$ import re from unidecode import unidecode def slugify(value): value = unidecode(value) value = re.sub('[^\w\s-]', '', value).strip().lower() return re.sub('[-\s]+', '-', value) return slugify(word) $$ );>>>SEPARATOR<<<I want to add some attributes to many to many relation>>>SEPARATOR<<<Create a conversion function to convert data.serial from string to float64>>>SEPARATOR<<<in this statement:
+
+```js
+const queryCreate = e.insert(e.Actor, {
+      name: body.name,
+      age: body?.age,
+      height: body?.height,
+      is_deceased: body?.isDeceased,
+    });
+```
+What does '?' do?>>>SEPARATOR<<<export async function getUserDetails(hankoId: string) {
+  const user = await e
+    .select(e.User, (u) => ({
+      filter_single: e.op(u.hankoId, "=", hankoId),
+      isMember: e.op(u.memberUntil, ">", e.datetime_current()),
+      freeActions: 
+    }))
+
+only return freeActions if memberUntil is false>>>SEPARATOR<<<How can I create a system user that I would be able to use programmatically>>>SEPARATOR<<<upgrade edgedb version 2 to 3>>>SEPARATOR<<<But mixing values and functions - operators in filter_single>>>SEPARATOR<<<How do I do an insert with a relation in the typescript api?>>>SEPARATOR<<<【select Position{**} filter (.code="0101070201" and .is_deleted = false) or .deletion_time = <datetime>"2099-12-31T03:26:56.411569+00:00"】我执行了上面的语句，数据库中存在满足“ (.code="0101070201" and .is_deleted = false)”的数据，按我的理解即使deletion_time不满足，由于后面是or的关系，所以不可能返回空值。>>>SEPARATOR<<<how can i filter for duplicates in terms of same tuple fields?>>>SEPARATOR<<<edgedb 数据库远程访问 的就是修改 其中的 ListenStream ip地址吗>>>SEPARATOR<<<how do I write a query to group an entity by it's attribute>>>SEPARATOR<<<select abc {
+  diff:= abc.talktime-abc.call_du,
+}
+
+exclude negative data>>>SEPARATOR<<<my fields is in snake_case. how can i retrieve json results with camelCase?>>>SEPARATOR<<<rewrite that query but use EdgeQL instead of the javascript library>>>SEPARATOR<<<What is the standard format of a select statement?>>>SEPARATOR<<<with module test
+    SELECT (
+        GROUP TestResult { count := count(TestResult) } 
+        BY .created_at[0:16] 
+        FILTER .created_at >= <datetime>$from AND .created_at <= <datetime>$to
+    )
+I got unexpected '['>>>SEPARATOR<<<how do i filter and return first entry?>>>SEPARATOR<<<edgedb migration create -I my_instance的作用是什么>>>SEPARATOR<<<edgedb subtract two num query sample>>>SEPARATOR<<<explain following codes in detailed steps from __future__ import annotations
+import edgedb
+
+
+async def get_number(
+    client: edgedb.AsyncIOClient,
+    *,
+    arg: int,
+) -> int:
+    return await client.query_single(
+        """\
+        select <int64>$arg        """,
+        arg=arg,
+    )>>>SEPARATOR<<<I have a migration file. Is the following valid syntax if I want to change personal_interests from a string to an array of string, currently being reset to an empty array? ALTER PROPERTY personal_favorite_themes { SET TYPE array<std::str> USING (array<std::str>[]); };>>>SEPARATOR<<<type Person {   required name: str;   multi friends: Person {     default := (select Person order by random() limit 3);   } }    How to filter out Persons who are friends by default those who have the same name>>>SEPARATOR<<<how do i do a nested insert of two items into a multi relation using the typescript client?>>>SEPARATOR<<<What about the edgedb scalability>>>SEPARATOR<<<I have a simple object Word with a Title field. What is the simplest way to query it with graphql using curl?>>>SEPARATOR<<<I need to use computed properties to check if all entries of a user profile are filled to add a him a tag named profileComplete the tag property is a linked property to user with a multi wordkey>>>SEPARATOR<<<CardinalityViolationError: delete1 was blocked by access policy>>>SEPARATOR<<<How to generate edgeql-js in vercel deployment?>>>SEPARATOR<<<how to specify location of migrations?>>>SEPARATOR<<<how to enable the admin ui in the docker compose file>>>SEPARATOR<<<what is array_agg>>>SEPARATOR<<<how to convert a string to Edgedb.DataTypes.Json in .Net>>>SEPARATOR<<<I have an EdgeDB Cloud instance. How do I setup a Python client to connect to this cloud instance, after setting the EDGEDB_SECRET_KEY and EDGEDB_INSTANCE environment variables?>>>SEPARATOR<<<I am using EdgeDB v3. Does EdgeDB contain functionality to mark an object as removed without actually deleting it?>>>SEPARATOR<<<can I replace these query with py file by code generator from edgepl file?>>>SEPARATOR<<<how can I extract only the property from a select?>>>SEPARATOR<<<How do I insert in EdgeQL?>>>SEPARATOR<<<how migrations are done in edgedb?>>>SEPARATOR<<<how do i select a property of a type while also filtering by a key in it>>>SEPARATOR<<<how do I define a parameter in the JS query builder if the type is unknown?>>>SEPARATOR<<<What about the query builder?>>>SEPARATOR<<<how can i count the number of a select query result>>>SEPARATOR<<<delete cascade>>>SEPARATOR<<<But, Isn't default:: able to implicit?>>>SEPARATOR<<<const query = e.delete(e.default.User, (user) => ({
+  filter: e.op(user.id, 'in', e.select(e.xlb.User, (user) => ({
+    result: user.identity.id,
+  }))),
+}));
+
+const result = await query.run(client);
+
+This only deletes `xlb::User` entries but the `User` entries still exist>>>SEPARATOR<<<Not the table but the database administrator.>>>SEPARATOR<<<i got error: EdgeQLSyntaxError: insert expression must be an object type reference how can I fix that>>>SEPARATOR<<<what's the edgedb equivalent of a stored procedure?>>>SEPARATOR<<<connrct to edgedb per python>>>SEPARATOR<<<How to make unique constraint to a field?>>>SEPARATOR<<<INSERT platform::Actor { platform_id := 3, name := 'Buck', }; INSERT platform::Actor { platform_id := 2, name := 'Puck', }; INSERT platform::Actor { platform_id := 1, name := 'Muck', }; with friends := (SELECT platform::Actor FILTER .stored_at = max(.stored_at) and FILTER (.platform_id, .name) in {(2, "Puck"), (1, "Muck")}) SELECT friends {};>>>SEPARATOR<<<select(insert Product{ title:=<str>$title, description:=<str>$description, price:=<float64>$price, categories:=<a> })>>>SEPARATOR<<<What's the schema in ESDL? CREATE TABLE Movie ( id INT PRIMARY KEY, title TEXT NON NULL, ); CREATE TABLE Actor ( id INT PRIMARY KEY, name TEXT NON NULL, ); CREATE TABLE MovieActor ( id INT PRIMARY KEY, movie_id INT NON NULL, actor_id INT NON NULL, );>>>SEPARATOR<<<SELECT Post {
+  id,
+  post_id,
+  post_type,
+  creation_date_date := <cal::local_date>to_datetime(.creation_date)
+} FILTER .creation_date_date >= <cal::local_date>'2023-10-26' 
+AND .creation_date_date <= <cal::local_date>'2023-10-27';>>>SEPARATOR<<<Fix this     role: str { constraint one_of('user', 'staff', 'manager', 'admin'); default := 'user'; }>>>SEPARATOR<<<edgedb.errors.TransactionSerializationError: could not serialize access due to concurrent update>>>SEPARATOR<<<how to make email unique>>>SEPARATOR<<<how to add a primary key>>>SEPARATOR<<<See the following given example. Is it possible to extend the constraint by "except" in this case.>>>SEPARATOR<<<does this query seems correct? insert Domain { ....... project := (select Project filter .id = <uuid>$project_id), ....... bbox := <array<float64>>$array, ....... crs := <str>$crs, .......     created_by := (select MD_User filter .keycloak_id = <uuid>$user), .......     modified_by := (select MD_User filter .keycloak_id = <uuid>$user), ....... };>>>SEPARATOR<<<How can I deploy edgeDB?>>>SEPARATOR<<<I want only backup the data in edgedb>>>SEPARATOR<<<How can I disable access policies just for one transaction with golang client?>>>SEPARATOR<<<Whats the syntax for filtering for values matching a lists of strings>>>SEPARATOR<<<tags: completedProfile ? e.assert_single(e.select(e.Tag, () => ({ filter_single: { name: 'Completed Profil' } }))) : null,>>>SEPARATOR<<<How to make a function with optional parameter?>>>SEPARATOR<<<can index be added to computed property?>>>SEPARATOR<<<Is it possible to write an access policy that denies delete if the root property is true unless global is_super_user is true. i.e. something like
+access policy deny_delete
+    deny delete
+    using(.root)
+access policy allow_delete
+   allow delete
+   using (global is_super_user ?? false);>>>SEPARATOR<<<create an array with n elements each with value v>>>SEPARATOR<<<What is the best way in terms of performance to model one-to-many and many-to-one relationships between objects? Specifically, is it better to have multi properties in the parent object or have a parent property in the child? To demonstrate, please use the following types as a basis: type User { avatarUrl: str; email: str { constraint exclusive; }; } type UserSocial { required provider: str; required providerId: str; } The User type has an exclusive one-to-many relationship with UserSocial. Additionally, explain how I can access the user object related to a UserSocial object.>>>SEPARATOR<<<How can I conditionally run a subquery depending on if a query variable is set or not?>>>SEPARATOR<<<can i rename the dbschema directory>>>SEPARATOR<<<edgedb.errors.UnsupportedFeatureError: UNLESS CONFLICT can not use ELSE when constraint is from a parent type ┌─ query:1:603 │ 1 │ INSERT facebook::User {platform_id := <int64>6479, name := <str>'ooo', } UNLESS CONFLICT ON (.platform_id) ELSE (UPDATE facebook::User SET {name := 'ooo', }); INSERT facebook::Post {platform_id := <int64>80, text := <str>'Comment!', author := (SELECT DETACHED facebook::User filter .platform_id in array_unpack([6479]) LIMIT 1), } UNLESS CONFLICT ON (.platform_id) ELSE (UPDATE facebook::Post SET {text := 'Comment!', }); INSERT facebook::Reaction {interactor_id := <int64>6479, interaction_on := (SELECT DETACHED facebook::Post filter .platform_id in array_unpack([80]) LIMIT 1), } UNLESS CONFLICT ON (.interaction_on, .interactor_id) ELSE (UPDATE facebook::Reaction SET {});>>>SEPARATOR<<<how do i define an optional field?>>>SEPARATOR<<<edgedb 默认事物的隔离级别>>>SEPARATOR<<<How to insert if not exists?>>>SEPARATOR<<<type Movie {
+  required title: str;
+  required release_year: int64;
+  multi characters: Person;
+}
+
+type Person {
+  required name: str;
+}
+
+type Hero extending Person {
+  required secret_identity: str;
+}
+
+type Villain extending Person {
+  required nemesis: Hero;
+}
+
+give this example with abstract>>>SEPARATOR<<<How to use seeders to feed my database>>>SEPARATOR<<<explain Please replace Campaign with your actual campaign type and adjust the fields accordingly.>>>SEPARATOR<<<I have this query:
+	with items := (
+		select Voting {*}
+		filter .title like "%" ++ <str>$titlePattern ++ "%"
+		order by .time desc
+		offset <int64>$offset
+		limit <int64>$limit;
+	)
+	select {
+		items := items,
+		count := count(items)
+	}
+
+How can I pass the result in go SDK? I tried nested structs but then I get "argument must be a pointer to a slice" error>>>SEPARATOR<<<Failed to update UnknownArgumentError: invalid global 'default::current_user_email', valid globals are 'jobs::current_user_email'>>>SEPARATOR<<<Can you annotate a custom scalar?>>>SEPARATOR<<<How do I return the updated item after having updated it?>>>SEPARATOR<<<如何查询当前全局变量>>>SEPARATOR<<<based on following schema , give me edgeql to insert the code to passage>>>SEPARATOR<<<Kindly point out my mistake in following query with edgedb 3.5: with company := ( insert Company { name := <str>$name, country := assert_single((select Country filter .id = <uuid>$country)), segment := assert_distinct( (for item in json_array_unpack(<json>$segment) union ( select Segment filter .name = <str>item['name'] ) ) ), city := <optional str>$city, emd_id := <optional int16>$emd_id, preferred_contact := <optional str>$preferred_contact, preferred_contact_mail := <optional str>$preferred_contact_mail }) update company set { dtu_id := .country.alpha2 ++ (select str_trim_start(to_str(.dtu_num, '0>>>SEPARATOR<<<Can I overload an inherited link to narrow the type which can be linked?>>>SEPARATOR<<<def remove(application_id, user_id):
+        return client.query("""
+            DELETE ListingApplication
+            FILTER .id = <uuid>$application_id AND .user.account.id = <uuid>$user_id AND .status = 'Pending'
+        """, application_id=application_id, user_id=user_id)
+
+
+>>>SEPARATOR<<<how many kinds of constraints does edgedb support>>>SEPARATOR<<<Estoy creando una global mediante esta consulta: global api_current_account := (
+    with user := (
+      select api::account::User filter .id = global default::current_user_id
+    ),
+    account := user.account,
+    account_guest := user.account_guest.account
+    select account if exists account else account_guest
+  );
+Hay algún problema con ella?>>>SEPARATOR<<<Batch update>>>SEPARATOR<<<Thank you. What are the differences between these two schema examples:
+
+ type Product {
+ multi upvoted_by -> Upvote;
+ property upvotes_count := count(.upvoted_by);
+}
+
+ type Product {
+ multi upvoted_by: Upvote;
+ property upvotes_count := count(.upvoted_by);
+}>>>SEPARATOR<<<with country_id:=<uuid>$country_id
+select PlanPrice{
+    price,
+    country:{name},
+    plan:{
+        id,
+        plan_name,
+        plan_type,
+        display_name,
+        in_chargebee,
+        number_of_phone,
+        frequency,
+        trial_days,
+        is_active,
+    },
+}
+# filter .country.id =country_id and .plan.frequency=<FREQUENCY>$frequency
+filter .country.id = country_id
+AND (
+    NOT EXISTS <optional FREQUENCY>$frequency
+    OR(
+    .plan.frequency = <FREQUENCY>$frequency IF EXISTS <FREQUENCY>$frequency 
+    ELSE false
+    )
+)>>>SEPARATOR<<<distinct on does not work here>>>SEPARATOR<<<Director's slug needs to be exclusive but only if they belong to the same region. Please add this constraint.>>>SEPARATOR<<<If i have type like this type Office extending Entity { required name: str { constraint exclusive; constraint expression on (str_trim(str_lower(__subject__)) = __subject__); } required address: str { constraint exclusive; constraint expression on (str_trim(str_lower(__subject__)) = __subject__); } } And this type EquipmentType extending Entity { required name: str { constraint exclusive; constraint expression on (str_trim(str_lower(__subject__)) = __subject__); } required is_material: bool; } type Equipment extending Entity { required name: str { constraint exclusive; constraint expression on (str_trim(str_lower(__subject__)) = __subject__); } required equipmentType: EquipmentType { on source delete delete target; } required office: Office { o>>>SEPARATOR<<<Can I use a function to set a global scalar?>>>SEPARATOR<<<I'd like to group data based on date.>>>SEPARATOR<<<json data insert example>>>SEPARATOR<<<Using the TS library to run a query, how can I validate that specific fields are not empty?>>>SEPARATOR<<<How can I set variable for HOSTNAME, PORT, DATABASE, tls_security>>>SEPARATOR<<<i have this json object and want to convert it to a edgedb schema:  {
+            id: 1,
+            title: "Introduction",
+            type: "multi",
+            options: ["A", "B", "C"],
+            last: false,
+            actions: [
+                {id: "A", title: "Action A", to: 2},
+                {id: "B", title: "Action B", to: 3},
+                {id: "C", title: "Action C", to: 4},
+            ],
+        },  i want to name the schema 'campaign' and i think we need to store the actions in a related table?>>>SEPARATOR<<<How do I select an object by id and link it to another object with a link property>>>SEPARATOR<<<What is edgedb instance>>>SEPARATOR<<<Can you also return the entire movie objects and not just the title?>>>SEPARATOR<<<how to create multiple users for edgedb>>>SEPARATOR<<<writing conditional ordering with string field>>>SEPARATOR<<<func(r *Database)VideoResumeGet(email string)(interface{},error){ var VideoResume struct{ VideoResume edgedb.Optional `edgedb:"video_resume"` } query:=`SELECT Applicant{ video_resume:{ date, datatype, size } }FILTER .email=<str>$0` err:=r.Db.QuerySingle(context.Background(),query,&VideoResume,email) if err!=nil{ fmt.Println(err.Error()) return "",err } return VideoResume,nil } i got error:edgedb.InvalidArgumentError: the "out" argument does not match query schema: expected struct { VideoResume edgedbtypes.Optional "edgedb:\"video_resume\"" }.video_resume to have a field named "date">>>SEPARATOR<<<migration error near of age>>>SEPARATOR<<<can i use @edgedb/generate with pnpm>>>SEPARATOR<<<How do i print edgedb.Object attributes in python?>>>SEPARATOR<<<How do I change the default database?>>>SEPARATOR<<<Create a dockerfile to run the edgedb file>>>SEPARATOR<<<How can I query the database for a date within a range of dates? E.g. I want to find appointments that are either today or tomorrow>>>SEPARATOR<<<group by and select>>>SEPARATOR<<<how to get number of elements in an edgedb database>>>SEPARATOR<<<type MetricTrigger { required metric: Metric; required threshold: float64; required constraint_operator: str { constraint one_of('LESS_THAN', 'GREATER_THAN', 'EQUAL_TO', 'NOT_EQUAL_TO', 'LESS_THAN_OR_EQUAL_TO', 'GREATER_THAN_OR_EQUAL_TO'); } # property is_triggered := (.metric.value <= .threshold); # Compare the metric value to the threshold using the constraint operator property is_triggered := ( ( .constraint_operator = 'LESS_THAN' AND .metric.value < .threshold ) OR ( .constraint_operator = 'GREATER_THAN' AND .metric.value > .threshold ) OR ( .constraint_operator = 'EQUAL_TO' AND .metric.value = .threshold ) OR ( .constraint_operator = 'NOT_EQUAL_TO' AND .metric.value != .threshold ) OR ( .constraint_operator = 'LESS_THAN_OR_EQUAL_TO' AND .metric.value <= .threshold>>>SEPARATOR<<<hot to convert uuid set to uuid array?>>>SEPARATOR<<<DOes edgedb have a sets of string>>>SEPARATOR<<<Index expressions must be immutable>>>SEPARATOR<<<Node connecting to edgedb database>>>SEPARATOR<<<query to join two tables>>>SEPARATOR<<<Show cursor based pagination>>>SEPARATOR<<<如何重启edgedb服务>>>SEPARATOR<<<can I have a tuple with an optional parameter?>>>SEPARATOR<<<Is it possible to store a date?>>>SEPARATOR<<<in edgedb typescript, what value for insertin optional property. null or undefined?>>>SEPARATOR<<<with friends := (
+                select platform::Actor {
+                    name,
+                    stored_at := max(.stored_at)
+                }
+                filter (.platform_id, .name) in {(2, "Puck"), (1, "Muck")}
+            )
+            select distinct {(.platform_id, .name) for friend in friends};>>>SEPARATOR<<<tags: completedProfile ? e.assert_single(e.select(e.Users.Tag, () => ({ filter_single: { name: 'Completed Profil' } }))): null, Is this one better considering the tag is declared as a module of user>>>SEPARATOR<<<How to filter multiple properties in edgeql>>>SEPARATOR<<<Is it possible to automatically save the updated time when a value is updated?>>>SEPARATOR<<<How to insert into a json key>>>SEPARATOR<<<Can EdgeDB be effectively used for simple databases not connected to any server>>>SEPARATOR<<<I got an error with 'edgedb migration create': There is no database revision in the filesystem. Consider updating sources.>>>SEPARATOR<<<how do I generate concrete file with edgedb-py?>>>SEPARATOR<<<In the above, will liked_by show up effectively in the user field>>>SEPARATOR<<<edgedb migrate>>>SEPARATOR<<<type MetricTrigger {
+        required metric: Metric;
+        required threshold: float64;
+        required constraint_operator: str {
+            constraint one_of('LESS_THAN', 'GREATER_THAN', 'EQUAL_TO', 'NOT_EQUAL_TO', 'LESS_THAN_OR_EQUAL_TO', 'GREATER_THAN_OR_EQUAL_TO');
+        }
+
+        # property is_triggered := (.metric.value <= .threshold);
+
+        # Compare the metric value to the threshold using the constraint operator
+        property is_triggered := (
+WRITE THIS>>>SEPARATOR<<<edgedb-py create the NoPydanticValidation base class for my response models. how can it be made compatible with pydantic v2?>>>SEPARATOR<<<this is my query
+    public async Task<List<QueueTicket>> GetAttendees(string queueEventId)
+    {
+        Guid guidId = Guid.Parse(queueEventId);
+        var query = "...";
+        var result = await _client.QueryAsync<QueueTicket>(query, new Dictionary<string, object?>
+    {
+        {"queueEventId", guidId }
+    });
+        return result.ToList();
+    }
+
+and this is my schema
+    type QueueEvent{
+        required title: str;
+        required organizer_email: str;
+        required description: str;
+        required current_number_served: int32;
+      	required ticket_counter: int32;
+        last_reset: datetime;
+    }
+    type QueueTicket{>>>SEPARATOR<<<how to group by tuple key in the set of tuple?>>>SEPARATOR<<<Is there a way to re use a common filter?>>>SEPARATOR<<<Does edgedb have a built in email scalar type or is there a common way of defining one?>>>SEPARATOR<<<show object property names>>>SEPARATOR<<<How to see an schema in edgedb?>>>SEPARATOR<<<In this code
+```
+ e.insert(e.consent.HipaaRelease, {
+        name: input.name,
+        dateOfBirth: input.dateOfBirth,
+        uploaded: false,
+        owner: e.select(e.User, () => ({
+          filter_single: { id: user.id },
+        })),
+      }),
+```
+
+How can I cast `input.dateOfBirth` into a local_date ?>>>SEPARATOR<<<how do I filter a type where a field is null>>>SEPARATOR<<<imagine there is a created_at field in each of piece of Content, how do I filter by records appearing after a certain date?>>>SEPARATOR<<<i have issue with this code
+      const user = await e.select(e.activity.UserVisit, visit => ({
+          filter: e.and(
+            e.op(visit.actor.id, '=', input.user.id),
+            e.op(visit.page, '=', input.page),
+            e.op(visit.timestamp, '>', e.now().minus(e.interval('30 minutes')))
+          ),
+          order: { timestamp: 'DESC' },
+          first: 1,
+          timestamp: true,
+          page: true,
+        })).run(ctx.dbClient);
+Property 'and' does not exist on type '__defaultExports & __defaultExports & OmitDollarPrefixed<typeof import("c:/Users/Julien/source/mvp/dbschema/edgeql-js/syntax")> & typeof import("c:/Users/Julien/source/mvp/dbschema/edgeql-js/operators") & { ...; }'.ts(2339)
+Property 'now' does not exist on type '__defaultExports & __defaultExports & OmitDollarPrefixed<typeof import("c:/Users/Julien/source/mvp/dbschema/edgeql-js/syntax")> & typeof import("c:/Users/Julien/source/mvp/dbschema/edgeql-js/operators") & { ...; }'.ts(2339)
+Property 'interval'>>>SEPARATOR<<<how to select distinct in edgedb>>>SEPARATOR<<<give me an example of multi link with .<> syntax>>>SEPARATOR<<<How can I add a multi level backlink to my schema

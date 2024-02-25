@@ -1,0 +1,196 @@
+how to do replication in edgedb?>>>SEPARATOR<<<Explain SDL vs DDL>>>SEPARATOR<<<What's the edgedb query to see if a property is not null?>>>SEPARATOR<<<how to upgrade dbschema from edgedb2 to edgedb3>>>SEPARATOR<<<I want to delete all objects without any filter>>>SEPARATOR<<<const query = e.insert(e.Annotation, {
+    supportSession: e.select(e.LiveSupport, () => ({
+      filter_single: { id: activeSupport.id },
+    })),
+    vidApiFrameId: e.str(requestBody.frame_id + ''),
+    changes: e.for(requestBody.entities, itm =>
+      e.insert(e.EntityChange, {
+        toLabel: e.str(itm.targetLabel),
+        entity: e.insert(e.Entity, {
+          label: e.str(itm.label),
+          vidApiEntityId: e.str(itm.id + ''),
+        }),
+      }),
+    ),
+  });
+
+ ⨯ TypeError: Cannot read properties of undefined (reading '__kind__')>>>SEPARATOR<<<How to introspect the type of object's link and update it in one edgeql statement.>>>SEPARATOR<<<How to filter by UUID with the Typescript query builder?>>>SEPARATOR<<<In your C# INSERT statement example you just omit the optional fields.  Is there a way to have the field be present and have a statement like <optional str>  in it?
+
+I want to add an optional (not required) field that is like this one where MusicCompanyLabel is another object.
+
+labels          := <optional>(SELECT MusicCompanyLabel FILTER .name IN { <str>$labl })>>>SEPARATOR<<<give me example using sql query in edgedb>>>SEPARATOR<<<in the above example how to insert a new record to person and link it to existing movie>>>SEPARATOR<<<select(insert Product{
+    title:=<str>$title,
+    description:=<str>$description,
+    price:=<float64>$price,
+    categories:=<a>
+
+})>>>SEPARATOR<<<Comment définir la longitude et la latitude dans le schéma ?>>>SEPARATOR<<<How would I modify this connection to set tls to insecure?
+const edgedbClient =  edgedb.createClient({
+        dsn: "edgedb://edgedb:ps88dWqlPg%Pc2P@138.197.105.104",
+        // dsn: "edgedb://edgedb:ps88dWqlPg%Pc2P@146.190.198.132",
+    })>>>SEPARATOR<<<how to point to a postgresql by edgedb>>>SEPARATOR<<<module default { type User { required username: str; multi link stories: Story; }; type Story { required owner: User; required title: str; multi entries: Entry; }; type Entry { required story: Story; required entry_text: str; required entry_acuity: float64; required occurred_at: datetime; # TODO: turn this into some sort of `Metadata` struct, if it becomes necessary? # required created_timestamp: datetime { # default := datetime_current(); # } }; } I want a User to have many stories, and a story to have many entries. how would i use @reverse here>>>SEPARATOR<<<How do you write a backlink to a property of the type itself, for example you have type `A` and type `A` has a `multi link` of `parents` and parents is a backlink to the `node_id` property on type A>>>SEPARATOR<<<how to get user defined type name list using eql?>>>SEPARATOR<<<That's how I have it, but the row is inside a e.tuple, which seems to break it>>>SEPARATOR<<<what about using eql?>>>SEPARATOR<<<How do I declare an array of tuples>>>SEPARATOR<<<type UserCount {
+    required property count: int64{
+      default:=0;
+    }
+}
+ this is my schema i want query the cout in golang>>>SEPARATOR<<<我该如何 在初始化完 edgedb客户端链接后  ，再根据具体业务请求头里的 用户id 来设置 edgedb 里 全局用户id ？>>>SEPARATOR<<<And now with array<str>>>>SEPARATOR<<<error: cannot cast 'std::datetime' to 'cal::local_date'
+    ┌─ /Users/kberg/MEGA/dev/projects/bountybroker/dbschema/default.esdl:168:28
+    │
+168 │     property daysActive := duration_get(<cal::local_date>datetime_of_transaction() - <cal::local_date>.listingDate, 'day');
+    │                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ error>>>SEPARATOR<<<How to empty database for a edgedb restore command>>>SEPARATOR<<<check current entities in edgb cli>>>SEPARATOR<<<This code still throws an error update Review filter .id = <uuid>$review_id set {     reactions.likes += 1 }>>>SEPARATOR<<<multi Tag := .<account[IS AccountTag];
+
+Is this correct syntax?>>>SEPARATOR<<<Filter for objects then delete them>>>SEPARATOR<<<can a link be optional>>>SEPARATOR<<<WITH
+    BS := (SELECT BaseSetting{name}),
+    SS := (SELECT SiteSetting{name})
+SELECT BS{name, value}
+FILTER NOT EXISTS (
+    SELECT SS
+    FILTER BS.name = SS.name
+) 
+filter BS.name ='site-name'>>>SEPARATOR<<<I have an object with a multi link property. I wish to select an existing entity for the multi link property, but also need to set a link property. Is this possible?>>>SEPARATOR<<<This code is not functioning: with module project::v2, ROOM := (select Room filter .task.id = <uuid>$id), TASK := (update Task filter .id = <uuid>$id set { status := <optional TaskStatus>$status, type := <optional project::TaskType>$type, description := <optional str>$description, isNonQuotable := <optional bool>$isNonQuotable, nonQuotableFixedPrice := <optional float64>$nonQuotableFixedPrice, room := ( (select ROOM if exists ROOM and exists TASK.room) ?? (select TASK.room if exists TASK.room) ?? {} ), }) select TASK { id, createdAt, updatedAt, } I am using EdgeDB v3.4. The error is as follows: Error in file './dbschema/queries/project/v2/task/update-project-task.v2.edgeql': EdgeQLSyntaxError: Unexpected ')'>>>SEPARATOR<<<Connect edgedb-server to backend-dsn>>>SEPARATOR<<<filter the notes only if note.read_by does not contain the given userId>>>SEPARATOR<<<What does the `?=` operator do?>>>SEPARATOR<<<Cómo puedo crear migrar mi base de datos local a la nube de edge cloud>>>SEPARATOR<<<All Nodes can have children but no Nodes have parents. All Blocks can be both parents and children (either of Nodes or other Blocks). The current expression I'm trying to use to achieve this is `((SELECT DETACHED Block FILTER .id = .parent_id) UNION (SELECT DETACHED Node FILTER .id IN (SELECT .parent_id FROM Block)))`. However, I get an error that says: "error: EdgeQLSyntaxError: Unexpected 'FROM'". How might I fix this?>>>SEPARATOR<<<ensure that there is always at least one table type ContactInformation {
+  required link phone -> Phone{
+      on source delete delete target  if orphan;
+    };
+    required property Location -> str{                   # ---------ContactInformation-----------#
+      default:="";
+    };
+    #  portfolio_link:tuple<company:str,url:str>;
+    multi link portfolio_link :Portfolio_Link{
+      on source delete delete target  if orphan;
+      on target delete allow;
+    };
+}
+
+# applicant Portfolio_Link
+ type Portfolio_Link{
+    required property company_name ->str;
+    required property url -> str;         # ---------Portfolio_Link-----------#
+  }>>>SEPARATOR<<<edgedb concat json and lsit of json>>>SEPARATOR<<<How do I query the annotation of a property in a User type?>>>SEPARATOR<<<`curl --proto '=https' --tlsv1.2 -sSf https://sh.edgedb.com | sh` this gives some options for default>>>SEPARATOR<<<Could I then query this NormalizedData entity in edgeql JS like a standard entity>>>SEPARATOR<<<What am I doing wrong to get a linked property called BankAccount?
+
+	const query = e.params({ id: e.uuid }, ({ id }) =>
+		e.select(e.dbr.transaction_data.Configuration, () => ({
+			bcc: true,
+			email: true,
+			name: true,
+			nickname: true,
+			id: true,
+			phone: true,
+			platform: true,
+			poc: true,
+			role: true,
+			last_line_of_email: true,
+			BankAccount: e.insert(e.BankAccount, {
+				name: "Testing",
+				gl_number: "1234"
+			}),
+			filter_single: { id }
+		}))
+	);
+>>>SEPARATOR<<<Ok let's try to break it down.
+How can I get, in a single query, all the contracts formatted as follow: `Record<string, Contract>`
+Keep in mind that the identifier should be the ticker. And I need to have flatten contract>>>SEPARATOR<<<How do i get the running edgedb version over edgeql>>>SEPARATOR<<<Locale is an enum. There's a global property called `locale` that holds the current user locale. How do I write a query that filters a property of type Locale and matches it to the global locale by exact match or by starting with the first 2 characters (e.g. "pt_BR" and "pt")?>>>SEPARATOR<<<const applicationMethods = match({ applyVia })
+                .with({ applyVia: { email: P.string, url: P.string } }, ({ applyVia: { email, url } }) => e.array([
+                    e.insert(ed.ApplicationMethod, {
+                        method: "email",
+                        value: email,
+                    }).unlessConflict(v => ({ on: v.value, else: v })),
+                    e.insert(ed.ApplicationMethod, {
+                        method: "link",
+                        value: url,
+                    }).unlessConflict(v => ({ on: v.value, else: v })),
+                ])).with({ applyVia: { email: P.string } }, ({ applyVia: { email } }) => (
+                    e.array([e.insert(ed.ApplicationMethod, {
+                        method: "email",
+                        value: email,
+                    }).unlessConflict(v => ({ on: v.value, else: v }))])
+                )).otherwise(() => e.array([e.insert(ed.ApplicationMethod, {
+                    method: "link",
+>>>SEPARATOR<<<Using this I've got the following error:
+
+error: constraints cannot contain paths with more than one hop
+   ┌─ /Users/jawerg/projectiles/brOrganizer/backend/dbschema/default.esdl:30:9
+   │
+30 │         constraint exclusive on ((.user.id, .name));
+   │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ error
+
+edgedb error: cannot proceed until .esdl files are fixed
+
+What could be wrong here?>>>SEPARATOR<<<prefix "s" is not allowed for strings, allowed: `b`, `r`]>>>SEPARATOR<<<I need to implement in schema>>>SEPARATOR<<<Say I want all instances of type A where objects in one of its multi link fields have an id of theID. Write a query for that>>>SEPARATOR<<<But then again repository pattern is not really needed for edgedb usually right?>>>SEPARATOR<<<make a property as unique>>>SEPARATOR<<<Now I get    error: 'common::String3to200' exists, but is a constraint, not a type instead>>>SEPARATOR<<<how would you update an object that already has an array, and append to an array in the object that already contains values>>>SEPARATOR<<<I have the following schema:
+
+module default {
+    type Listing {
+        required owner: User;
+        name: str;
+        title: str;
+        description: str;
+        price: int32;
+        multi liked_by: User;
+    }
+
+    type User {
+        required name: str;
+    }
+
+    type Review {
+        required author: User;
+        rating: int32;
+        body: str;
+        required listing: Listing;
+    }
+}
+
+I am trying to update the liked_by field in the Listing type with the following query:
+
+update Listing
+filter
+Listing.id = <uuid>"b639ac06-a65d-11ee-bd3e-43636da6e2ac"
+set {
+    liked_by := <uuid>"d66b2450-a65d-11ee-bd3e-f3cf86a5435e"
+}
+
+but I'm getting this error:
+InvalidLinkTargetError: invalid target for link 'liked_by' of object type 'default::Listing': 'std::uuid' (expecting 'default::User')>>>SEPARATOR<<<I want format datetime object in edgedb query there is any way to do>>>SEPARATOR<<<D'après ce schéma type ProductCategory { required name: str; multi families: ProductFamily; } type ProductFamily { required name: str; required category: ProductCategory; multi products: Product; } j'ai comme ProductCategory 'Viande' enregistré. Donne moi un exemple de code edgeql qui insère de nouveaux ProductFamily en lien avec Viande et qui enregistre aussi les ProductFamily dans le schema ProductCategory en 1 seule requête>>>SEPARATOR<<<error: Unexpected keyword 'delete' 
+     ┌─ /home/hl/HLOS/dbschema/default.esdl:2142:19
+     │
+2142 │           rewrite delete using (datetime_of_statement());
+     │                   ^^^^^^ Use a different identifier or quote the name with backticks: `delete`
+     │
+     = Token 'delete' is a reserved keyword and cannot be used as an identifier>>>SEPARATOR<<<edgedb> INSERT facebook::User { ....... platform_id := 10, ....... name := 'mi', ....... } ....... UNLESS CONFLICT ON .platform_id ....... ELSE ( ....... update facebook::User set { ....... friends += (SELECT detached facebook::User filter .platform_id = 4), ....... } ....... ); ....... error: UnsupportedFeatureError: UNLESS CONFLICT can not use ELSE when constraint is from a parent type ┌─ <query>:5:20 │ 5 │ UNLESS CONFLICT ON .platform_id │ ^^^^^^^^^^^^ error │ = The existing object can't be exposed in the ELSE clause because it may not have type facebook::User INSERT facebook::User { platform_id := 10, name := 'mi', } UNLESS CONFLICT ON .platform_id ELSE ( update facebook::User set { friends += (SELECT detached facebook::User filter .platform_id = 4), } );>>>SEPARATOR<<<how do I delete edgedb database on particular dsn?>>>SEPARATOR<<<can you help me understand why we use multi suburbs: Suburb; when there is already an implicit link in Suburb (required electorate: Electorate;)>>>SEPARATOR<<<this is the current query i have
+    public async Task<QueueTicket> RegisterCustomer(QueueTicket queueTicket)
+    {
+        Guid guidId = queueTicket.QueueEventId;
+        var query = @"WITH Inserted := (
+                    INSERT QueueTicket {
+                        customer_name := <str>$customer_name,
+                        customer_phone_number := <str>$customer_phone_number,
+                        queue_number := <int32>$queue_number,
+                        queue_event := (SELECT QueueEvent FILTER .id = <uuid>$queueId)
+                    }
+                  )
+                  SELECT Inserted{*};";
+        var result = await _client.QuerySingleAsync<QueueTicket>(query, new Dictionary<string, object?>
+        {
+            {"customer_name", queueTicket.CustomerName },
+            {"customer_phone_number", queueTicket.CustomerPhoneNumber },
+            {"queue_number", queueTicket.QueueNumber },
+            {"queueId", guidId }
+        });
+        return result;
+    }
+
+and thi>>>SEPARATOR<<<EdgeDB does not support recursive functions. Is there another way?>>>SEPARATOR<<<how to delete edgedb database>>>SEPARATOR<<<const query = e.update(e.LocationArea, area => ({
+    filter_single: e.op(area.id, '=', e.uuid(requestBody.area)),
+    set: {
+      responses: e.for(e.json_array_unpack(requestBody.responses), item => {
+        return e.insert(e.Response, {
+          question: e.cast(e.uuid, item.question),
+          option: e.cast(e.uuid, item.option),
+        });
+      }),
+    },
+  }));
+
+
+Cannot convert literal '[object Object]' into scalar type>>>SEPARATOR<<<insert a link from operationstate to entities with header id as edge property, to trace entity history over a set of entities with a repeatedly updating state. I need to be able to query the historical state of a particular entity at a provided time. each operationstate has a header with time, and links to the entities at that instant. Let me be clear that operationstate has a multi link to the entities at that time.
+
+the entities are already created, but do not get linked to (and their respective states "frozen in time" by virtue of their timestamp) operationstate until operationstate is created>>>SEPARATOR<<<returning function doesn't appear to exist>>>SEPARATOR<<<how i edgeql-js>>>SEPARATOR<<<there is an object type with properties id and version. write a query to get all objects with id in a list of given ids, but only the ones with the highest version>>>SEPARATOR<<<what is the TPC-DS results for Edgebd? how does it compare with other dbs?>>>SEPARATOR<<<How do I set my project to use a specific database?>>>SEPARATOR<<<database key that is a list of ints
