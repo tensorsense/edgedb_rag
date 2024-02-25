@@ -176,3 +176,17 @@ df2 = pd.read_json(path2, lines=True)
 
 eval_df = pd.merge(left=df1[["query", "response"]], right=df2[["query", "response"]], how="inner", on="query", suffixes=["_1", "_2"])
 ```
+
+3. To evaluate faithfullness and relevancy scores, create an `Evaluator` instance.
+
+```python
+from src.eval import Evaluator
+
+evaluator = Evaluator(llm=llms.llamaindex_light)
+```
+
+`.evaluate_response` expects a `PydanticReponse` object. It proceeds to evaluate faithfulness, answer relevancy and context relevancy using an LLM.
+
+```python
+eval_result = evaluator.evaluate_response(response=responses)
+```

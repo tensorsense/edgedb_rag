@@ -3,12 +3,13 @@ from pathlib import Path
 from tqdm import tqdm
 
 from llama_index.core.bridge.pydantic import BaseModel, Field
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Union
 from llama_index.core.schema import TextNode, NodeWithScore
 from llama_index.core.evaluation import (
     FaithfulnessEvaluator,
     AnswerRelevancyEvaluator,
     ContextRelevancyEvaluator,
+    EvaluationResult,
 )
 
 from llama_index.core import PromptTemplate
@@ -16,6 +17,7 @@ from llama_index.core.base.response.schema import Response
 from llama_index.core.base.base_query_engine import BaseQueryEngine
 from llama_index.core.base.response.schema import Response
 from llama_index.core.chat_engine.types import BaseChatEngine, AgentChatResponse
+from llama_index.core.llms import LLM
 
 
 ANSWER_RELEVANCY_TEMPLATE = PromptTemplate(
@@ -55,7 +57,9 @@ class PydanticResponse(BaseModel):
     source_nodes: List[TextNode]
 
     @classmethod
-    def from_llamaindex_response(cls, query, llamaindex_response):
+    def from_llamaindex_response(
+        cls, query: str, llamaindex_response: Union[AgentChatResponse, Response]
+    ):
         if isinstance(llamaindex_response, AgentChatResponse):
             metadata = llamaindex_response.sources[0].raw_output.metadata
         elif isinstance(llamaindex_response, Response):
@@ -69,8 +73,21 @@ class PydanticResponse(BaseModel):
             source_nodes=[node.node for node in llamaindex_response.source_nodes],
         )
 
+    def to_llamaindex_response(self) -> Response:
+        return Response(
+            response=self.response,
+            metadata=self.metadata,
+            source_nodes=[
+                NodeWithScore(node=node, score=1.0) for node in self.source_nodes
+            ],
+        )
 
-def run_queries(generator, queries: List[str], result_path: Path):
+
+def run_queries(
+    generator: Union[BaseChatEngine, BaseQueryEngine],
+    queries: List[str],
+    result_path: Path,
+) -> List[PydanticResponse]:
     all_responses = []
 
     for query in tqdm(queries):
@@ -86,9 +103,9 @@ def run_queries(generator, queries: List[str], result_path: Path):
             continue
 
         response = PydanticResponse.from_llamaindex_response(
-                query=query,
-                llamaindex_response=llamaindex_response,
-            )
+            query=query,
+            llamaindex_response=llamaindex_response,
+        )
         with result_path.open("+a") as f:
             f.write(f"{response.json()}\n")
 
@@ -98,7 +115,7 @@ def run_queries(generator, queries: List[str], result_path: Path):
 
 
 class Evaluator:
-    def __init__(self, llm) -> None:
+    def __init__(self, llm: LLM) -> None:
         self.answer_relevancy = AnswerRelevancyEvaluator(
             llm=llm,
             eval_template=ANSWER_RELEVANCY_TEMPLATE,
@@ -113,7 +130,9 @@ class Evaluator:
 
         self.faithfulness = FaithfulnessEvaluator(llm=llm)
 
-    def evaluate_response(self, response: PydanticResponse):
+    def evaluate_response(
+        self, response: PydanticResponse
+    ) -> Dict[str, EvaluationResult]:
         llamaindex_response = response.to_llamaindex_response()
         query = response.query
 
