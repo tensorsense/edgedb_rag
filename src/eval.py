@@ -94,6 +94,7 @@ def run_queries(
         try:
             if issubclass(type(generator), BaseChatEngine):
                 llamaindex_response = generator.chat(message=query, chat_history=[])
+                generator.reset()
             elif issubclass(type(generator), BaseQueryEngine):
                 llamaindex_response = generator.query(query)
             else:

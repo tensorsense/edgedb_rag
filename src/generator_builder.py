@@ -60,20 +60,24 @@ class LLMConfig(BaseModel):
             llamaindex_light=AzureOpenAI(
                 azure_deployment=light,
                 openai_api_version=api_version,
+                max_retries=0,
             ),
             llamaindex_heavy=AzureOpenAI(
                 azure_deployment=heavy,
                 openai_api_version=api_version,
+                max_retries=0,
             ),
             langchain_light=AzureChatOpenAI(
                 temperature=0.1,
                 azure_deployment=light,
                 openai_api_version=api_version,
+                max_retries=0,
             ),
             langchain_heavy=AzureChatOpenAI(
                 temperature=0.1,
                 azure_deployment=heavy,
                 openai_api_version=api_version,
+                max_retries=0,
             ),
             embed_model=AzureOpenAIEmbedding(
                 deployment_name=embedding,
