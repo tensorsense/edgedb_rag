@@ -14,6 +14,43 @@ from llama_index.core.schema import NodeWithScore, QueryBundle, TextNode
 from typing import Any, List, Optional
 
 
+FILTER_SYSTEM_TEMPLATE = """You are an assistant that helps filter pieces of EdgeDB documentation.
+Below you will find several pieces of official EdgeDB documentation, each denoted by ---, as well as a user query denoted by ***.
+Your job is to determine for each piece whether or not it contains information necessary to answer user's query.
+Pay specific attention to:
+
+1. Programming language. Assume by default that the user is expecting to see EdgeQL and SDL in the answer, unless they explicitly said otherwise.
+2. Relevancy of the concepts. For example:
+
+Query: how do I create a Movie entity with a backlink to characters?
+
+Relevant (contains an example of a backlink):
+```sdl
+type User {{
+    required email: str;
+    multi friends: User;
+    blog_links := .<author[is BlogPost];
+    comment_links := .<author[is Comment];
+}}
+```
+
+Not relevant (does not contain an example of a backlink):
+```sdl
+type Movie {{
+    required title: str {{ constraint exclusive }};
+    required release_year: int64;
+    multi characters: Person;
+}}
+```
+
+{format_instructions}
+"""
+
+FILTER_HUMAN_TEMPLATE = """***{query}***
+---{documents}---
+"""
+
+
 class RatedDocument(BaseModel):
     content: str = Field(description="Text of the document verbatim.")
     is_relevant: bool = Field(
@@ -30,52 +67,15 @@ class FilteredContext(BaseModel):
 def build_context_filter_chain(
     langchain_light: BaseChatModel, langchain_heavy: BaseChatModel
 ) -> RunnableSerializable:
-
-    system_template = """You are an assistant that helps filter pieces of EdgeDB documentation.
-        Below you will find several pieces of official EdgeDB documentation, each denoted by ---, as well as a user query denoted by ***.
-        Your job is to determine for each piece whether or not it contains information necessary to answer user's query.
-        Pay specific attention to:
-
-        1. Programming language. Assume by default that the user is expecting to see EdgeQL and SDL in the answer, unless they explicitly said otherwise.
-        2. Relevancy of the concepts. For example:
-
-        Query: how do I create a Movie entity with a backlink to characters?
-
-        Relevant (contains an example of a backlink):
-        ```sdl
-        type User {{
-            required email: str;
-            multi friends: User;
-            blog_links := .<author[is BlogPost];
-            comment_links := .<author[is Comment];
-        }}
-        ```
-
-        Not relevant (does not contain an example of a backlink):
-        ```sdl
-        type Movie {{
-            required title: str {{ constraint exclusive }};
-            required release_year: int64;
-            multi characters: Person;
-        }}
-        ```
-        
-        {format_instructions}
-        """
-
-    human_template = """***{query}***
-        ---{documents}---
-        """
-
     # Set up a parser + inject instructions into the prompt template.
     parser = PydanticOutputParser(pydantic_object=FilteredContext)
 
     system_message = SystemMessagePromptTemplate.from_template(
-        template=system_template,
+        template=FILTER_SYSTEM_TEMPLATE,
         # partial_variables={"format_instructions": parser.get_format_instructions()},
     )
 
-    human_message = HumanMessagePromptTemplate.from_template(template=human_template)
+    human_message = HumanMessagePromptTemplate.from_template(template=FILTER_HUMAN_TEMPLATE)
 
     prompt = ChatPromptTemplate.from_messages(
         [

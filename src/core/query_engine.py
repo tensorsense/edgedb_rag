@@ -19,49 +19,62 @@ from langchain_core.prompts import (
 )
 
 
-TEMPLATE = """You are a programming assistant who specializes in working with EdgeDB.
-    You have expert knowledge about EdgeDB and its integrations, as well as EdgeQL and SDL.
-    You are answering questions to help users learn EdgeDB using the official documentation.
+QA_TEMPLATE = """You are a programming assistant who specializes in working with EdgeDB.
+You have expert knowledge about EdgeDB and its integrations, as well as EdgeQL and SDL.
+You are answering questions to help users learn EdgeDB using the official documentation.
 
-    The automated seach system has provided you with context information made of pieces of the documentation below.
-    ---------------------
-    {context_str}
-    ---------------------
-    Given the context information and not prior knowledge about syntax and operators, answer the query.
-    
-    If the context information does not contain enough information to answer the query, \
-    reply with "I cound not find relevant EdgeDB documentation on the subject".
+The automated seach system has provided you with context information made of pieces of the documentation below.
+---------------------
+{context_str}
+---------------------
+Given the context information and not prior knowledge about syntax and operators, answer the query.
 
-    If the user is asking about certain syntax or operator as if it exists, but no such thing can be found in the context, \
-    please clarify the confusion by saying "I have no relevant information about [subject]". \
-    Next, offer a solution that strictly follows the context if it is possible, otherwise say nothing at all.
+If the context information does not contain enough information to answer the query, \
+reply with "I cound not find relevant EdgeDB documentation on the subject".
 
-    Always assume the question needs to be answered with EdgeQL and SDL, \
-    unless the user's query contains or explicitly asks for another language, \
-    even if you find examples in other languages within the context.
+If the user is asking about certain syntax or operator as if it exists, but no such thing can be found in the context, \
+please clarify the confusion by saying "I have no relevant information about [subject]". \
+Next, offer a solution that strictly follows the context if it is possible, otherwise say nothing at all.
 
-    Try to always illustrate your answer with a pair of an example schema and an example query corresponding to it.
+Always assume the question needs to be answered with EdgeQL and SDL, \
+unless the user's query contains or explicitly asks for another language, \
+even if you find examples in other languages within the context.
 
-    User query: {query_str}
-    
-    Answer:
-    """
+Try to always illustrate your answer with a pair of an example schema and an example query corresponding to it.
+
+User query: {query_str}
+
+Answer:
+"""
+
+
+FAITH_SYSTEM_TEMPLATE = """You are the assistant that helps rate faithfulness of EdgeDB QA system responses.
+You will be provided a user query denoted by ***, and the QA system response denoted by <<>>.
+You will also receive context made of pieces of official EdgeDB documentation denoted by ---.
+Your job is to determine whether all of the information in the response is present in the context.
+{format_instructions}
+"""
+
+FAITH_HUMAN_TEMPLATE = """***{query}***
+<<{response}>>
+---{context}---
+"""
 
 
 class VerifiedResponse(BaseModel):
     references: List[str] = Field(
-        description="List of names of pieces of context that were used to produce the response. \
-            For every factual statement in the response, try to find the name of the context from which the information came. \
-            Can be empty."
+        description="List of names of pieces of context that were used to produce the response "
+        "For every factual statement in the response, try to find the name of the context from which the information came. "
+        "Can be empty."
     )
     is_faithful: bool = Field(
         description="Based on the references, determine if the response can be considered faithful to the context overall."
     )
     assistant_response: str = Field(
-        description="Final system response that is going to be sent to the user. \
-            If the response is correct and faithful, reproduce it verbatim. \
-            If minor mistakes are present, fix them. \
-            If the response is not faithful, replace it with 'Sorry, the system was unable to produce a faithful response'"
+        description="Final system response that is going to be sent to the user. "
+        "If the response is correct and faithful, reproduce it verbatim. "
+        "If minor mistakes are present, fix them. "
+        "If the response is not faithful, replace it with 'Sorry, the system was unable to produce a faithful response'"
     )
     reasoning: Optional[str] = Field(
         description="Additional explanation for the outcome of the verification. Can be empty."
@@ -71,28 +84,17 @@ class VerifiedResponse(BaseModel):
 def build_response_chain(
     langchain_light: BaseChatModel, langchain_heavy: BaseChatModel
 ) -> RunnableSerializable:
-    system_template = """You are the assistant that helps rate faithfulness of EdgeDB QA system responses.
-        You will be provided a user query denoted by ***, and the QA system response denoted by <<>>.
-        You will also receive context made of pieces of official EdgeDB documentation denoted by ---.
-        Your job is to determine whether all of the information in the response is present in the context.
-
-        {format_instructions}
-        """
-
-    human_template = """***{query}***
-        <<{response}>>
-        ---{context}---
-        """
-
     # Set up a parser + inject instructions into the prompt template.
     parser = PydanticOutputParser(pydantic_object=VerifiedResponse)
 
     system_message = SystemMessagePromptTemplate.from_template(
-        template=system_template,
+        template=FAITH_SYSTEM_TEMPLATE,
         # partial_variables={"format_instructions": parser.get_format_instructions()},
     )
 
-    human_message = HumanMessagePromptTemplate.from_template(template=human_template)
+    human_message = HumanMessagePromptTemplate.from_template(
+        template=FAITH_HUMAN_TEMPLATE
+    )
 
     prompt = ChatPromptTemplate.from_messages(
         [
@@ -196,7 +198,7 @@ def build_query_engine(
     )
 
     query_engine.update_prompts(
-        {"response_synthesizer:text_qa_template": PromptTemplate(TEMPLATE)}
+        {"response_synthesizer:text_qa_template": PromptTemplate(QA_TEMPLATE)}
     )
 
     return query_engine
