@@ -52,14 +52,18 @@ FILTER_HUMAN_TEMPLATE = """***{query}***
 
 
 class RatedDocument(BaseModel):
-    content: str = Field(description="Text of the document verbatim.")
+    content: str = Field(
+        default_factory=str, description="Text of the document verbatim."
+    )
     is_relevant: bool = Field(
-        description="Whether the document contains information necessary to reply to the query."
+        default=False,
+        description="Whether the document contains information necessary to reply to the query.",
     )
 
 
 class FilteredContext(BaseModel):
     documents: List[RatedDocument] = Field(
+        default_factory=list,
         description="All provided documents, rated for relevance."
     )
 
@@ -75,7 +79,9 @@ def build_context_filter_chain(
         # partial_variables={"format_instructions": parser.get_format_instructions()},
     )
 
-    human_message = HumanMessagePromptTemplate.from_template(template=FILTER_HUMAN_TEMPLATE)
+    human_message = HumanMessagePromptTemplate.from_template(
+        template=FILTER_HUMAN_TEMPLATE
+    )
 
     prompt = ChatPromptTemplate.from_messages(
         [

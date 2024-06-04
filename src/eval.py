@@ -3,7 +3,7 @@ from pathlib import Path
 from tqdm import tqdm
 
 from llama_index.core.bridge.pydantic import BaseModel, Field
-from typing import List, Dict, Any, Union
+from typing import List, Dict, Any, Union, Optional
 from llama_index.core.schema import TextNode, NodeWithScore
 from llama_index.core.evaluation import (
     FaithfulnessEvaluator,
@@ -53,8 +53,8 @@ CONTEXT_RELEVANCY_TEMPLATE = PromptTemplate(
 class PydanticResponse(BaseModel):
     query: str
     response: str
-    metadata: Dict[str, Any]
-    source_nodes: List[TextNode]
+    metadata: Optional[Dict[str, Any]] = Field(default_factory=dict)
+    source_nodes: List[TextNode] = Field(default_factory=list)
 
     @classmethod
     def from_llamaindex_response(

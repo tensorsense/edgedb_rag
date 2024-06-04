@@ -63,14 +63,17 @@ FAITH_HUMAN_TEMPLATE = """***{query}***
 
 class VerifiedResponse(BaseModel):
     references: List[str] = Field(
+        default_factory=list,
         description="List of names of pieces of context that were used to produce the response "
         "For every factual statement in the response, try to find the name of the context from which the information came. "
         "Can be empty."
     )
     is_faithful: bool = Field(
+        default=False,
         description="Based on the references, determine if the response can be considered faithful to the context overall."
     )
     assistant_response: str = Field(
+        default_factory=str,
         description="Final system response that is going to be sent to the user. "
         "If the response is correct and faithful, reproduce it verbatim. "
         "If minor mistakes are present, fix them. "
@@ -188,14 +191,21 @@ def build_query_engine(
     langchain_heavy: BaseChatModel,
 ) -> FilteredQueryEngine:
 
-    response_chain = build_response_chain(langchain_light, langchain_heavy)
+    # response_chain = build_response_chain(langchain_light, langchain_heavy)
 
-    query_engine = FilteredQueryEngine.from_args(
-        chain=response_chain,
+    query_engine = RetrieverQueryEngine.from_args(
         retriever=retriever,
         llm=llm,
         node_postprocessors=postprocessors,
+        streaming=True,
     )
+
+    # query_engine = FilteredQueryEngine.from_args(
+    #     chain=response_chain,
+    #     retriever=retriever,
+    #     llm=llm,
+    #     node_postprocessors=postprocessors,
+    # )
 
     query_engine.update_prompts(
         {"response_synthesizer:text_qa_template": PromptTemplate(QA_TEMPLATE)}
