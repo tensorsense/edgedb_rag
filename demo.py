@@ -4,7 +4,7 @@ from dotenv import load_dotenv, find_dotenv
 from pathlib import Path
 from tqdm import tqdm
 import sys
-from langchain.schema import AIMessage, HumanMessage
+from llama_index.core.llms import ChatMessage, MessageRole
 
 
 _ = load_dotenv(find_dotenv()) 
@@ -29,7 +29,7 @@ Settings.llm = llms.llamaindex_light
 from src.index_builder import build_index
 
 index, full_nodes_dict = build_index(
-    persist_path = Path("notebooks/index_storage_updated").resolve(),
+    persist_path = Path("./index_storage_updated").resolve(),
     collection_name = "index",
     lib_path = Path("../../docs_md").resolve()
 )
@@ -43,12 +43,12 @@ generator = build_generator(
 
 def answer(question: str, history):
 
-    history_langchain_format = []
+    history_llamaindex = []
     for human, ai in history:
-        history_langchain_format.append(HumanMessage(content=human))
-        history_langchain_format.append(AIMessage(content=ai))
+        history_llamaindex.append(ChatMessage(content=human, role=MessageRole.USER))
+        history_llamaindex.append(ChatMessage(content=ai, role=MessageRole.ASSISTANT))
 
-    response = generator.stream_chat(message=question, chat_history=history_langchain_format)
+    response = generator.stream_chat(message=question, chat_history=history_llamaindex)
     message = ''
     for token in response.response_gen:
         message += token
@@ -57,9 +57,7 @@ def answer(question: str, history):
 
 demo = gr.ChatInterface(
     fn=answer,
-    # inputs=["text"],
-    # outputs=["text"],
 )
 
 if __name__ == '__main__':
-    demo.launch(debug=True)
+    demo.launch(share=True, auth=("edgedb", "<pass>"))
