@@ -162,3 +162,4 @@ cython_debug/
 *.env
 index_storage
 index_base_storage
+index_storage_updated
