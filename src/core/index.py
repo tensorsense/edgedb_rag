@@ -16,67 +16,24 @@ from llama_index.core import (
 from llama_index.core.schema import IndexNode, TextNode, BaseNode
 from llama_index.core.indices.base import BaseIndex
 from chromadb.api.models.Collection import Collection
+from pydantic import BaseModel, Field
+from enum import Enum
 
-# Section mapping for each document in the index
 
-DOC_MAP = {
-    "changelog": "other",
-    "cli": "edgedb_general",
-    "clients": "integrations",
-    "datamodel": "edgeql_and_sdl",
-    "edgeql": "edgeql_and_sdl",
-    "glossary": "other",
-    "guides/auth": "edgedb_general",
-    "guides/cheatsheet/admin": "edgedb_general",
-    "guides/cheatsheet/aliases": "edgeql_and_sdl",
-    "guides/cheatsheet/annotations": "edgeql_and_sdl",
-    "guides/cheatsheet/boolean": "edgeql_and_sdl",
-    "guides/cheatsheet/cli": "edgedb_general",
-    "guides/cheatsheet/delete": "edgeql_and_sdl",
-    "guides/cheatsheet/functions": "edgeql_and_sdl",
-    "guides/cheatsheet/insert": "edgeql_and_sdl",
-    "guides/cheatsheet/index": "other",
-    "guides/cheatsheet/link_properties": "edgeql_and_sdl",
-    "guides/cheatsheet/objects": "edgeql_and_sdl",
-    "guides/cheatsheet/repl": "edgedb_general",
-    "guides/cheatsheet/select": "edgeql_and_sdl",
-    "guides/cheatsheet/update": "edgeql_and_sdl",
-    "guides/cloud": "edgedb_general",
-    "guides/contributing": "edgedb_general",
-    "guides/datamigrations": "edgedb_general",
-    "guides/deployment": "edgedb_general",
-    "guides/index": "other",
-    "guides/migrations": "ddl",
-    "guides/tutorials": "integrations",
-    "index": "other",
-    "intro/cli": "edgedb_general",
-    "intro/clients": "integrations",
-    "intro/edgeql": "edgeql_and_sdl",
-    "intro/index": "other",
-    "intro/instances": "edgedb_general",
-    "intro/migrations": "edgedb_general",
-    "intro/projects": "edgedb_general",
-    "intro/quickstart": "edgedb_general",
-    "intro/schema": "edgeql_and_sdl",
-    "reference/admin": "edgedb_general",
-    "reference/bindings": "edgeql_and_sdl",
-    "reference/ddl": "ddl",
-    "reference/edgeql": "edgeql_and_sdl",
-    "reference/index": "other",
-    "reference/protocol": "edgedb_general",
-    "reference/sdl": "edgeql_and_sdl",
-    "reference/connection": "edgedb_general",
-    "reference/environment": "edgedb_general",
-    "reference/projects": "edgedb_general",
-    "reference/edgedb_toml": "edgedb_general",
-    "reference/dsn": "edgedb_general",
-    "reference/dump_format": "edgedb_general",
-    "reference/backend_ha": "edgedb_general",
-    "reference/configuration": "edgedb_general",
-    "reference/http": "edgedb_general",
-    "reference/sql_support": "edgedb_general",
-    "stdlib": "edgeql_and_sdl",
-}
+class DocCategory(Enum):
+    EDGEDB_GENERAL = "edgedb_general"
+    EDGEQL_AND_SDL = "edgeql_and_sdl"
+    DDL = "ddl"
+    INTEGRATIONS = "integrations"
+    OTHER = "other"
+
+
+class DocMetadata(BaseModel):
+    url: str = Field(description="Path to doc relative to root.")
+    category: DocCategory = Field(
+        default=DocCategory.EDGEDB_GENERAL,
+        description="Parent category to which the doc belongs.",
+    )
 
 
 def extract_non_code_text(markdown_string: str) -> str:
@@ -91,28 +48,31 @@ def extract_non_code_text(markdown_string: str) -> str:
 
 def save_to_disk(
     lib_path: Path,
+    metadata_path: Path,
     persist_path: Path,
     collection_name: str,
 ) -> Tuple[BaseIndex, Dict[str, BaseNode]]:
     documents = SimpleDirectoryReader(lib_path.as_posix(), recursive=True).load_data()
 
-    # Set category for each document
+    # Load metadata from disk
+    with metadata_path.open("r") as f:
+        metadatas = [
+            DocMetadata.model_validate_json(raw_line) for raw_line in f.readlines()
+        ]
+        metadatas_dict = {doc_metadata.url: doc_metadata for doc_metadata in metadatas}
 
-    doc_map_keys = list(DOC_MAP.keys())
+    # Set category for each parsed LlamaIndex document
     docs_with_meta = []
 
     for doc in documents:
         rel_path = (
             Path(doc.metadata["file_path"]).resolve().relative_to(lib_path).as_posix()
         )
-        section_key = [key for key in doc_map_keys if rel_path.startswith(key)][
-            -1
-        ]  # because cli and clients
-        doc.metadata["section"] = DOC_MAP[section_key]
+
+        doc.metadata["section"] = metadatas_dict[rel_path].category.value
         docs_with_meta.append(doc)
 
     # Embed only text, store full docs
-
     stored_nodes = []
     full_nodes_dict = {}
 
@@ -155,7 +115,6 @@ def save_to_disk(
 
 
 def load_from_disk(
-    lib_path: Path,
     persist_path: Path,
     collection_name: str,
 ) -> Tuple[BaseIndex, Dict[str, BaseNode]]:
