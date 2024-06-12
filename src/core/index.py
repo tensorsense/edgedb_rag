@@ -1,23 +1,22 @@
 from pathlib import Path
-import re
-import json
 from tqdm import tqdm
-from typing import Tuple, Dict
-
-import chromadb
-from llama_index.vector_stores.chroma import ChromaVectorStore
-
-from llama_index.core import (
-    SimpleDirectoryReader,
-    StorageContext,
-    VectorStoreIndex,
-    Document,
-)
-from llama_index.core.schema import IndexNode, TextNode, BaseNode
-from llama_index.core.indices.base import BaseIndex
-from chromadb.api.models.Collection import Collection
-from pydantic import BaseModel, Field
 from enum import Enum
+import uuid
+import re
+
+from typing import List, Dict
+from pydantic.v1 import BaseModel, Field
+
+from langchain_core.documents import Document
+from langchain_core.vectorstores import VectorStore
+from langchain_core.stores import BaseStore
+from langchain_core.embeddings import Embeddings
+from langchain.storage import InMemoryByteStore
+from langchain_chroma import Chroma
+from langchain_community.document_loaders import TextLoader
+
+
+ID_KEY = "doc_id"
 
 
 class DocCategory(Enum):
@@ -36,133 +35,142 @@ class DocMetadata(BaseModel):
     )
 
 
-def extract_non_code_text(markdown_string: str) -> str:
-    # Define a regex pattern to match triple backticks code blocks
-    code_block_pattern = r"```.*?```"
-
-    # Remove code blocks from the Markdown string
-    non_code_text = re.sub(code_block_pattern, "", markdown_string, flags=re.DOTALL)
-
-    return non_code_text
+class Docs(BaseModel):
+    full: Dict[str, Document] = Field(description="Mapping of UUIDs to full documents")
+    children: List[Document] = Field(
+        description="List of child documents carrying parent UUID in metadata"
+    )
 
 
-def save_to_disk(
-    lib_path: Path,
-    metadata_path: Path,
-    persist_path: Path,
-    collection_name: str,
-) -> Tuple[BaseIndex, Dict[str, BaseNode]]:
-    documents = SimpleDirectoryReader(lib_path.as_posix(), recursive=True).load_data()
+class PersistentDocStore(BaseModel):
+    doc_map: Dict[str, Document] = Field(default_factory=dict)
 
-    # Load metadata from disk
-    with metadata_path.open("r") as f:
-        metadatas = [
-            DocMetadata.model_validate_json(raw_line) for raw_line in f.readlines()
-        ]
-        metadatas_dict = {doc_metadata.url: doc_metadata for doc_metadata in metadatas}
 
-    # Set category for each parsed LlamaIndex document
-    docs_with_meta = []
+class Index(BaseModel):
+    """Index for searching documents"""
 
-    for doc in documents:
-        rel_path = (
-            Path(doc.metadata["file_path"]).resolve().relative_to(lib_path).as_posix()
-        )
+    class Config:
+        arbitrary_types_allowed = True
 
-        doc.metadata["section"] = metadatas_dict[rel_path].category.value
-        docs_with_meta.append(doc)
+    vectorstore: VectorStore = Field(
+        description="Stores no-code chunks of text and their embeddings. Performs similarity search."
+    )
+    docstore: BaseStore = Field(description="Stores full parent documents.")
+    embedding_function: Embeddings = Field(
+        description="Embedding function used to project documents and queries."
+    )
 
-    # Embed only text, store full docs
-    stored_nodes = []
-    full_nodes_dict = {}
+    @staticmethod
+    def read_docs_from_metadata(metadata_path: Path, lib_path: Path) -> Docs:
+        # 1. Load metadata from disk
+        with metadata_path.open("r") as f:
+            metadatas = [DocMetadata.parse_raw(raw_line) for raw_line in f.readlines()]
 
-    for doc in docs_with_meta:
-        non_code_text = extract_non_code_text(doc.text)
-        if len(non_code_text) < len(doc.text):
-            doc_info = {k: v for k, v in doc.dict().items() if k not in ["id_", "text"]}
-            index_node = IndexNode.from_text_node(
-                index_id=doc.node_id,
-                node=TextNode(
-                    text=non_code_text,
-                    **doc_info,
-                ),
+        def extract_non_code_text(markdown_string: str) -> str:
+            # Define a regex pattern to match triple backticks code blocks
+            code_block_pattern = r"```.*?```"
+
+            # Remove code blocks from the Markdown string
+            non_code_text = re.sub(
+                code_block_pattern, "", markdown_string, flags=re.DOTALL
             )
 
-            stored_nodes.append(index_node)
-            full_nodes_dict[doc.node_id] = doc
-        else:
-            stored_nodes.append(doc)
+            return non_code_text
 
-    # save to disk
+        # 2. Read original documents from disk according to paths found in metadata
+        full_docs: List[Document] = []
 
-    chroma_client = chromadb.PersistentClient(path=persist_path.as_posix())
-    chroma_collection = chroma_client.get_or_create_collection(collection_name)
+        for metadata in metadatas:
+            loader = TextLoader(lib_path / metadata.url)
+            doc_chunks = loader.load()
+            for doc in doc_chunks:
+                doc.metadata["category"] = metadata.category.value
+            full_docs.extend(doc_chunks)
 
-    vector_store = ChromaVectorStore(chroma_collection=chroma_collection)
-    storage_context = StorageContext.from_defaults(vector_store=vector_store)
+        # 3. Generate doc ids used to link child documents with their parents
+        full_docs_dict = {str(uuid.uuid4()): doc for doc in full_docs}
 
-    index = VectorStoreIndex(
-        stored_nodes, storage_context=storage_context, show_progress=True
-    )
+        # 4. Create child docs by removing code from full documents
+        no_code_docs = [
+            Document(
+                page_content=extract_non_code_text(full_doc.page_content),
+                metadata=full_doc.metadata | {ID_KEY: doc_id},
+            )
+            for doc_id, full_doc in full_docs_dict.items()
+        ]
 
-    full_nodes_path = persist_path.joinpath("full_nodes.json")
+        return Docs(full=full_docs_dict, children=no_code_docs)
 
-    serializable = {k: v.json() for k, v in full_nodes_dict.items()}
-    with full_nodes_path.open("w") as f:
-        json.dump(serializable, f)
+    @staticmethod
+    def create_vectorstore(
+        persist_directory: str, embedding_function: Embeddings
+    ) -> VectorStore:
+        # The vectorstore for the child chunks
+        vectorstore = Chroma(
+            collection_name="child_docs",
+            persist_directory=persist_directory,
+            embedding_function=embedding_function,
+        )
+        return vectorstore
 
-    return index, full_nodes_dict
+    @staticmethod
+    def create_docstore(persistent_docstore: PersistentDocStore) -> BaseStore:
+        # The storage layer for the parent documents
+        docstore = InMemoryByteStore()
+        docstore.mset([(k, v) for k, v in persistent_docstore.doc_map.items()])
+        return docstore
 
+    @classmethod
+    def from_metadata(
+        cls,
+        metadata_path: Path,
+        lib_path: Path,
+        persist_path: Path,
+        embedding_function: Embeddings,
+    ) -> "Index":
+        """Build new index using a library of docs and a metadata JSON file"""
 
-def load_from_disk(
-    persist_path: Path,
-    collection_name: str,
-) -> Tuple[BaseIndex, Dict[str, BaseNode]]:
-    # load from disk
-    chroma_client = chromadb.PersistentClient(path=persist_path.as_posix())
-    chroma_collection = chroma_client.get_or_create_collection(collection_name)
+        # 1. Read and preprocess documents
+        docs = cls.read_docs_from_metadata(metadata_path, lib_path)
 
-    vector_store = ChromaVectorStore(chroma_collection=chroma_collection)
-    index = VectorStoreIndex.from_vector_store(
-        vector_store,
-    )
+        # 2. Create and populate vectorstore
+        vectorstore = cls.create_vectorstore(
+            persist_directory=persist_path.resolve().as_posix(),
+            embedding_function=embedding_function,
+        )
 
-    full_nodes_path = persist_path.joinpath("full_nodes.json")
-    with full_nodes_path.open("r") as f:
-        serializable = json.load(f)
+        def batcher(seq, size):
+            return (seq[pos : pos + size] for pos in range(0, len(seq), size))
 
-    full_nodes_dict = {k: Document.parse_raw(v) for k, v in serializable.items()}
+        batches = list(batcher(docs.children, 100))
+        for batch in tqdm(batches, total=len(batches)):
+            vectorstore.add_documents(batch)
 
-    return index, full_nodes_dict
+        # 3. Create and populate docstore for full documents, and save it to disk
+        persistent_docstore = PersistentDocStore(doc_map=docs.full)
+        docstore = cls.create_docstore(persistent_docstore=persistent_docstore)
 
+        with persist_path.joinpath("docstore.json").open("w") as f:
+            f.write(persistent_docstore.json())
 
-def add_document(
-    index: BaseIndex,
-    full_nodes_dict: Dict[str, BaseNode],
-    persist_path: Path,
-    doc_text: str,
-    doc_section: str,
-) -> None:
+        return cls(
+            vectorstore=vectorstore,
+            docstore=docstore,
+            embedding_function=embedding_function,
+        )
 
-    new_doc_no_code = extract_non_code_text(doc_text)
-    doc = TextNode(text=doc_text)
-    doc.metadata["section"] = doc_section
-
-    doc_info = {k: v for k, v in doc.dict().items() if k not in ["id_", "text"]}
-
-    index_node = IndexNode.from_text_node(
-        index_id=doc.node_id,
-        node=TextNode(
-            text=new_doc_no_code,
-            **doc_info,
-        ),
-    )
-
-    index.insert_nodes([index_node])
-    full_nodes_dict[doc.node_id] = doc
-
-    full_nodes_path = persist_path.joinpath("full_nodes.json")
-
-    serializable = {k: v.json() for k, v in full_nodes_dict.items()}
-    with full_nodes_path.open("w") as f:
-        json.dump(serializable, f)
+    @classmethod
+    def from_persist_path(cls, persist_path: Path, embedding_function: Embeddings):
+        """Load existing index from disk"""
+        vectorstore = cls.create_vectorstore(
+            persist_directory=persist_path.resolve().as_posix(),
+            embedding_function=embedding_function,
+        )
+        with persist_path.joinpath("docstore.json").open("r") as f:
+            persistent_docstore = PersistentDocStore.parse_raw(f.read())
+        docstore = cls.create_docstore(persistent_docstore=persistent_docstore)
+        return cls(
+            vectorstore=vectorstore,
+            docstore=docstore,
+            embedding_function=embedding_function,
+        )
