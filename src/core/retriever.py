@@ -90,9 +90,12 @@ def build_retriever(llm, vectorstore, docstore):
 
     def retrieve_with_filter(retreiver_chain):
         def do_retrieve(search):
-            return retreiver_chain.invoke(
-                search.query, _filter={"category": {"$eq": search.category}}
-            )
+            if search.category:
+                return retreiver_chain.invoke(
+                    search.query, _filter={"category": {"$eq": search.category}}
+                )
+            else:
+                return retreiver_chain.invoke(search.query)
 
         return do_retrieve
 
