@@ -21,7 +21,7 @@ class Search(BaseModel):
     )
     category: Optional[str] = Field(
         None,
-        description="The section to which a piece of documentation belongs. One of ['edgedb_general', 'ddl', 'integrations'].",
+        description="The section to which a piece of documentation belongs. Must be one of ['edgeql_and_sdl', 'ddl', 'integrations', 'edgedb_general', 'other'].",
     )
 
 
@@ -67,7 +67,15 @@ class FilteredMultiVectorRetriever(MultiVectorRetriever):
 def build_retriever(llm, vectorstore, docstore):
 
     system = """You are an expert at converting user questions into database queries. \
-    You have access to documentation for EdgeDB, the database. \
+    You have access to documentation for the database called EdgeDB. \
+    
+    The documentation is divided into following sections:
+    - edgeql_and_sdl: information about defining schemas and writing queries. Assume this category by default when answering questions related to these topics.
+    - DDL: documentation for the low-level schema definition language.
+    - Integrations: documentation related to working with EdgeDB in other programming languages such as Python, TypeScript etc. Should only be picked if the query explicitly mentions other languages.
+    - edgedb_general: information about concepts in EdgeDB that aren't directly related to writing schemas and queries.
+    - Other: assorted things such as changelogs.
+
     Given a question, return a list of database queries optimized to retrieve the most relevant results.
 
     If there are acronyms or words you are not familiar with, do not try to rephrase them."""
