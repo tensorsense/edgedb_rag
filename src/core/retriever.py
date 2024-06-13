@@ -1,11 +1,15 @@
 from typing import List, Optional
-
+from operator import itemgetter
 from langchain_core.documents import Document
 from langchain.retrievers.multi_vector import MultiVectorRetriever, SearchType
 from langchain_core.callbacks import CallbackManagerForRetrieverRun
 from langchain_core.pydantic_v1 import BaseModel, Field
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.runnables import RunnablePassthrough, RunnableLambda
+from langchain_core.runnables import (
+    RunnablePassthrough,
+    RunnableLambda,
+    RunnableParallel,
+)
 
 
 class Search(BaseModel):
@@ -86,10 +90,20 @@ def build_retriever(llm, vectorstore, docstore):
 
     def retrieve_with_filter(retreiver_chain):
         def do_retrieve(search):
-            return retreiver_chain.invoke(search.query, _filter={"category": {"$eq": search.category}})
+            return retreiver_chain.invoke(
+                search.query, _filter={"category": {"$eq": search.category}}
+            )
+
         return do_retrieve
-    
-    retriever_chain = query_analyzer | RunnableLambda(retrieve_with_filter(filtered_retriever))
+
+    extract_search_terms = RunnableParallel(
+        input=RunnablePassthrough(),
+        search_terms=query_analyzer,
+    )
+
+    retriever_chain = extract_search_terms | RunnablePassthrough.assign(
+        documents=itemgetter("search_terms")
+        | RunnableLambda(retrieve_with_filter(filtered_retriever))
+    )
 
     return retriever_chain
-

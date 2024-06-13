@@ -1,6 +1,6 @@
 from langchain.chains import create_history_aware_retriever
 from langchain_core.prompts import MessagesPlaceholder
-from langchain_core.runnables import RunnablePassthrough
+from langchain_core.runnables import RunnablePassthrough, RunnableParallel
 
 from langchain_community.chat_message_histories import ChatMessageHistory
 from langchain_core.chat_history import BaseChatMessageHistory
@@ -11,6 +11,7 @@ from langchain_core.documents import Document
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.retrievers import BaseRetriever
+from operator import itemgetter
 
 
 class Citation(BaseModel):
@@ -96,16 +97,14 @@ def build_generator(llm: BaseChatModel, retriever: BaseRetriever):
 
     question_answer_chain = (
         RunnablePassthrough.assign(
-            context=(lambda x: format_docs_with_id(x["context"]))
+            context=(lambda x: format_docs_with_id(x["retrieval_result"]["documents"]))
         )
         | qa_prompt
         | llm.with_structured_output(QuotedAnswer)
     ).with_config(run_name="question_answer_chain")
 
-    # retrieve_docs = (lambda x: x) | history_aware_retriever
-
     rag_chain = (
-        RunnablePassthrough.assign(context=history_aware_retriever)
+        RunnablePassthrough.assign(retrieval_result=history_aware_retriever)
         .assign(answer=question_answer_chain)
         .with_config(run_name="rag_chain")
     )
