@@ -16,7 +16,6 @@ from src.core.index import Index, ID_KEY
 from src.core.retriever import build_retriever
 from src.core.generator import build_generator
 
-
 llm = AzureChatOpenAI(
     temperature=0.0,
     azure_deployment="gpt4o",
@@ -28,10 +27,20 @@ embedding_function = AzureOpenAIEmbeddings(
     azure_deployment="text-embedding-ada-002", api_version="2023-07-01-preview"
 )
 
-index = Index.from_persist_path(
-    persist_path=Path("index_storage").resolve(),
-    embedding_function=embedding_function,
-)
+persist_path = Path("index_storage").resolve()
+
+if persist_path.exists():
+    index = Index.from_persist_path(
+        persist_path=persist_path,
+        embedding_function=embedding_function,
+    )
+else:
+    index = Index.from_metadata(
+        metadata_path=Path("resources/doc_metadata.jsonl"),
+        lib_path=Path("../../docs_md"),
+        persist_path=persist_path,
+        embedding_function=embedding_function,
+    )
 
 retriever = build_retriever(
     llm=llm, vectorstore=index.vectorstore, docstore=index.docstore
@@ -48,16 +57,20 @@ def generate(question: str, session_id: str):
     )
 
     for segment in response:
-        
+
         message = ""
 
         if "retrieval_result" in segment:
             if "search_terms" in segment["retrieval_result"]:
-                message += "Looking for: " + segment["retrieval_result"]["search_terms"].query
+                message += (
+                    "Looking for: " + segment["retrieval_result"]["search_terms"].query
+                )
 
                 if segment["retrieval_result"]["search_terms"].category is not None:
-                    message += " in " + segment["retrieval_result"]["search_terms"].category
-        
+                    message += (
+                        " in " + segment["retrieval_result"]["search_terms"].category
+                    )
+
         if "answer" in segment:
             message += segment["answer"].answer
 
