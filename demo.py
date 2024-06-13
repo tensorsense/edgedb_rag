@@ -6,7 +6,8 @@ import sys
 
 from langchain_openai import AzureChatOpenAI, AzureOpenAIEmbeddings
 from langchain.globals import set_debug
-
+from langchain_community.chat_message_histories import ChatMessageHistory
+from langchain_core.messages import AIMessage, HumanMessage
 
 set_debug(False)
 _ = load_dotenv(find_dotenv())
@@ -46,14 +47,24 @@ retriever = build_retriever(
     llm=llm, vectorstore=index.vectorstore, docstore=index.docstore
 )
 
-generator = build_generator(llm=llm, retriever=retriever)
+
+def parse_history(raw_history):
+    history = ChatMessageHistory()
+    for human, ai in raw_history:
+        history.add_user_message(human)
+        history.add_ai_message(ai)
+
+    return history
 
 
-def generate(question: str, session_id: str):
+generator = build_generator(llm=llm, retriever=retriever, get_session_history_callable=parse_history())
+
+
+def generate(question: str, history):
 
     response = generator.stream(
         {"input": question},
-        config={"configurable": {"session_id": session_id}},
+        config={"configurable": {"raw_history": []}},
     )
 
     for segment in response:

@@ -12,6 +12,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.retrievers import BaseRetriever
 from operator import itemgetter
+from langchain_core.runnables.utils import ConfigurableFieldSpec
 
 
 class Citation(BaseModel):
@@ -74,7 +75,7 @@ def get_sessions(session_store: Dict[str, BaseChatMessageHistory]):
     return get_session_history
 
 
-def build_generator(llm: BaseChatModel, retriever: BaseRetriever):
+def build_generator(llm: BaseChatModel, retriever: BaseRetriever, get_session_history_callable=None):
     contextualize_q_prompt = ChatPromptTemplate.from_messages(
         [
             ("system", contextualize_q_system_prompt),
@@ -109,9 +110,22 @@ def build_generator(llm: BaseChatModel, retriever: BaseRetriever):
         .with_config(run_name="rag_chain")
     )
 
+    # if get_session_history_callable is None:
+    #     get_session_history_callable = get_sessions(session_store={})
+
     conversational_rag_chain = RunnableWithMessageHistory(
         rag_chain,
-        get_sessions(session_store={}),
+        get_session_history_callable,
+        history_factory_config=[
+            ConfigurableFieldSpec(
+                id="raw_history",
+                annotation=List,
+                name="Raw chat message history",
+                description="List of messages coming from frontend",
+                default=[],
+                is_shared=True,
+            ),
+        ],
         input_messages_key="input",
         history_messages_key="chat_history",
         output_messages_key="answer",
