@@ -3,11 +3,13 @@ import gradio as gr
 from dotenv import load_dotenv, find_dotenv
 from pathlib import Path
 import sys
+from typing import List
 
 from langchain_openai import AzureChatOpenAI, AzureOpenAIEmbeddings
 from langchain.globals import set_debug
 from langchain_community.chat_message_histories import ChatMessageHistory
 from langchain_core.messages import AIMessage, HumanMessage
+from langchain_core.runnables.utils import ConfigurableFieldSpec
 
 set_debug(False)
 _ = load_dotenv(find_dotenv())
@@ -57,17 +59,35 @@ def parse_history(raw_history):
     return history
 
 
-generator = build_generator(llm=llm, retriever=retriever, get_session_history_callable=parse_history)
+generator = build_generator(
+    llm=llm,
+    retriever=retriever,
+    get_session_history_callable=parse_history,
+    history_factory_config=[
+        ConfigurableFieldSpec(
+            id="raw_history",
+            annotation=List,
+            name="Raw chat message history",
+            description="List of messages coming from frontend",
+            default=[],
+            is_shared=True,
+        ),
+    ],
+)
 
 
 def build_message(message_parts):
     message = ""
-    message += "Looking for: " + message_parts["search_query"] 
-    message += " in " + message_parts["search_category"] if len(message_parts["search_category"]) > 0 else " everywhere"
+    message += "Looking for: " + message_parts["search_query"]
+    message += (
+        " in " + message_parts["search_category"]
+        if len(message_parts["search_category"]) > 0
+        else " everywhere"
+    )
     message += "\n\n"
 
     message += message_parts["answer"] + "\n\n"
-    
+
     message += "Cited sources:\n"
     message += message_parts["citations"] + "\n\n"
 
@@ -87,7 +107,6 @@ def generate(question: str, history):
     message_parts = {
         "search_query": "",
         "search_category": "",
-
         "answer": "",
         "citations": "",
         "all_sources": "",
@@ -97,17 +116,21 @@ def generate(question: str, history):
         if "retrieval_result" in segment:
             if "documents" in segment["retrieval_result"]:
                 document_part = ""
-                
+
                 for doc in segment["retrieval_result"]["documents"]:
                     document_part += f"{doc.metadata['source']}\n"
 
                 message_parts["all_sources"] = document_part
 
             if "search_terms" in segment["retrieval_result"]:
-                message_parts["search_query"] = segment["retrieval_result"]["search_terms"].query
-                
+                message_parts["search_query"] = segment["retrieval_result"][
+                    "search_terms"
+                ].query
+
                 if segment["retrieval_result"]["search_terms"].category is not None:
-                    message_parts["search_category"] = segment["retrieval_result"]["search_terms"].category
+                    message_parts["search_category"] = segment["retrieval_result"][
+                        "search_terms"
+                    ].category
 
         if "answer" in segment:
             message_parts["answer"] = segment["answer"].answer
@@ -115,8 +138,8 @@ def generate(question: str, history):
             if segment["answer"].citations:
                 citation_part = ""
                 for citation in segment["answer"].citations:
-                     citation_part += "Source " + str(citation.source_id) + "\n\n"
-                     citation_part += citation.quote + "\n\n"
+                    citation_part += "Source " + str(citation.source_id) + "\n\n"
+                    citation_part += citation.quote + "\n\n"
 
                 message_parts["citations"] = citation_part
 

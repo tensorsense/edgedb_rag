@@ -76,7 +76,12 @@ def get_sessions(session_store: Dict[str, BaseChatMessageHistory]):
     return get_session_history
 
 
-def build_generator(llm: BaseChatModel, retriever: BaseRetriever, get_session_history_callable=None):
+def build_generator(
+    llm: BaseChatModel,
+    retriever: BaseRetriever,
+    get_session_history_callable=None,
+    history_factory_config=None,
+):
     contextualize_q_prompt = ChatPromptTemplate.from_messages(
         [
             ("system", contextualize_q_system_prompt),
@@ -111,22 +116,25 @@ def build_generator(llm: BaseChatModel, retriever: BaseRetriever, get_session_hi
         .with_config(run_name="rag_chain")
     )
 
-    # if get_session_history_callable is None:
-    #     get_session_history_callable = get_sessions(session_store={})
+    if get_session_history_callable is None:
+        get_session_history_callable = get_sessions(session_store={})
+        history_factory_config = [
+            ConfigurableFieldSpec(
+                id="session_id",
+                annotation=str,
+                name="Session ID",
+                description="Identifier of the session",
+                default="0",
+                is_shared=True,
+            ),
+        ]
+    else:
+        assert history_factory_config is not None
 
     conversational_rag_chain = RunnableWithMessageHistory(
         rag_chain,
         get_session_history_callable,
-        history_factory_config=[
-            ConfigurableFieldSpec(
-                id="raw_history",
-                annotation=List,
-                name="Raw chat message history",
-                description="List of messages coming from frontend",
-                default=[],
-                is_shared=True,
-            ),
-        ],
+        history_factory_config=history_factory_config,
         input_messages_key="input",
         history_messages_key="chat_history",
         output_messages_key="answer",
