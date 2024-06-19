@@ -27,6 +27,7 @@ class DocCategory(Enum):
     OTHER = "other"
 
 
+# types used to parse and verify document metadata
 class DocMetadata(BaseModel):
     url: str = Field(description="Path to doc relative to root.")
     category: DocCategory = Field(
@@ -42,6 +43,7 @@ class Docs(BaseModel):
     )
 
 
+# type used to store, load and verify docstore
 class PersistentDocStore(BaseModel):
     doc_map: Dict[str, Document] = Field(default_factory=dict)
 

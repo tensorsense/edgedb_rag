@@ -1,20 +1,18 @@
 from langchain.chains import create_history_aware_retriever
-from langchain_core.prompts import MessagesPlaceholder
 from langchain_core.runnables import RunnablePassthrough, RunnableParallel
-
-from langchain_community.chat_message_histories import ChatMessageHistory
 from langchain_core.chat_history import BaseChatMessageHistory
 from langchain_core.runnables.history import RunnableWithMessageHistory
-from pydantic.v1 import BaseModel, Field
-from typing import List, Dict
 from langchain_core.documents import Document
-from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.retrievers import BaseRetriever
-from operator import itemgetter
 from langchain_core.runnables.utils import ConfigurableFieldSpec
+from langchain_community.chat_message_histories import ChatMessageHistory
+from pydantic.v1 import BaseModel, Field
+from typing import List, Dict
 
 
+# types used to prompt and verify model's structured output
 class Citation(BaseModel):
     source_id: int = Field(
         ...,
@@ -38,6 +36,7 @@ class QuotedAnswer(BaseModel):
     )
 
 
+# general RAG prompt
 system_prompt = (
     "You are an assistant for question-answering tasks. "
     "You answer questions about the database called EdgeDB. "
@@ -50,6 +49,7 @@ system_prompt = (
 )
 
 
+# query contextualization prompt for retriever (last message + history -> search query)
 contextualize_q_system_prompt = (
     "Given a chat history and the latest user question "
     "which might reference context in the chat history, "
@@ -82,6 +82,19 @@ def build_generator(
     get_session_history_callable=None,
     history_factory_config=None,
 ):
+    """Create a Conversation RAG chain to use as a backbone for the chatbot
+
+    Args:
+        llm: LangChain ChatModel with function calling support.
+        retriever: A runnable that fetches relevant documents based on the query.
+        get_session_history_callable: A callable that returns relevant chat history
+            that the bot can use as context. The implementation will depend on how a
+            particular chat interface handles message history.
+        history_factory_config: An object that describes what arguments the chain needs
+            to use to fetch correct message history from get_session_history_callable
+
+    """
+    # 1. Decorate retriever with history-aware functionality (last message + history -> search query -> docs)
     contextualize_q_prompt = ChatPromptTemplate.from_messages(
         [
             ("system", contextualize_q_system_prompt),
@@ -94,6 +107,7 @@ def build_generator(
         llm, retriever, contextualize_q_prompt
     )
 
+    # 2. Build a question answering subchain (search query + docs -> answer with quotes)
     qa_prompt = ChatPromptTemplate.from_messages(
         [
             ("system", system_prompt),
@@ -110,12 +124,14 @@ def build_generator(
         | llm.with_structured_output(QuotedAnswer)
     ).with_config(run_name="question_answer_chain")
 
+    # 3. Join retriever and QA chain together
     rag_chain = (
         RunnablePassthrough.assign(retrieval_result=history_aware_retriever)
         .assign(answer=question_answer_chain)
         .with_config(run_name="rag_chain")
     )
 
+    # 4. Verify or set up session history fetching
     if get_session_history_callable is None:
         get_session_history_callable = get_sessions(session_store={})
         history_factory_config = [
@@ -131,6 +147,7 @@ def build_generator(
     else:
         assert history_factory_config is not None
 
+    # 5. Decorate RAG chain with message history functionality
     conversational_rag_chain = RunnableWithMessageHistory(
         rag_chain,
         get_session_history_callable,

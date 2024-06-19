@@ -12,6 +12,22 @@ from langchain_core.runnables import (
 )
 
 
+system_prompt = """You are an expert at converting user questions into database queries. \
+You have access to documentation for the database called EdgeDB. \
+
+The documentation is divided into following sections:
+- edgeql_and_sdl: information about defining schemas and writing queries. Assume this category by default when answering questions related to these topics.
+- DDL: documentation for the low-level schema definition language.
+- Integrations: documentation related to working with EdgeDB in other programming languages such as Python, TypeScript etc. Should only be picked if the query explicitly mentions other languages.
+- edgedb_general: information about concepts in EdgeDB that aren't directly related to writing schemas and queries.
+- Other: assorted things such as changelogs.
+
+Given a question, return a list of database queries optimized to retrieve the most relevant results.
+
+If there are acronyms or words you are not familiar with, do not try to rephrase them."""
+
+
+# type used to prompt and verify structured output from the LLM
 class Search(BaseModel):
     """Search over documentation for EdgeDB database."""
 
@@ -26,6 +42,7 @@ class Search(BaseModel):
 
 
 class FilteredMultiVectorRetriever(MultiVectorRetriever):
+    """Modified multi-vector retriever with filter support"""
 
     _new_arg_supported: bool = True
     _expects_other_args: bool = True
@@ -65,24 +82,10 @@ class FilteredMultiVectorRetriever(MultiVectorRetriever):
 
 
 def build_retriever(llm, vectorstore, docstore):
-
-    system = """You are an expert at converting user questions into database queries. \
-    You have access to documentation for the database called EdgeDB. \
-    
-    The documentation is divided into following sections:
-    - edgeql_and_sdl: information about defining schemas and writing queries. Assume this category by default when answering questions related to these topics.
-    - DDL: documentation for the low-level schema definition language.
-    - Integrations: documentation related to working with EdgeDB in other programming languages such as Python, TypeScript etc. Should only be picked if the query explicitly mentions other languages.
-    - edgedb_general: information about concepts in EdgeDB that aren't directly related to writing schemas and queries.
-    - Other: assorted things such as changelogs.
-
-    Given a question, return a list of database queries optimized to retrieve the most relevant results.
-
-    If there are acronyms or words you are not familiar with, do not try to rephrase them."""
-
+    # 1. Build a query analysis subchain (query -> similarity search query + filter)
     prompt = ChatPromptTemplate.from_messages(
         [
-            ("system", system),
+            ("system", system_prompt),
             ("human", "{question}"),
         ]
     )
@@ -90,12 +93,19 @@ def build_retriever(llm, vectorstore, docstore):
     structured_llm = llm.with_structured_output(Search)
     query_analyzer = {"question": RunnablePassthrough()} | prompt | structured_llm
 
+    extract_search_terms = RunnableParallel(
+        input=RunnablePassthrough(),
+        search_terms=query_analyzer,
+    )
+
+    # 2. Create a retriever
     filtered_retriever = FilteredMultiVectorRetriever(
         vectorstore=vectorstore,
         docstore=docstore,
         id_key="doc_id",
     )
 
+    # 3. Create a wrapper that plugs query analysis output into the retriever
     def retrieve_with_filter(retreiver_chain):
         def do_retrieve(search):
             if search.category:
@@ -107,11 +117,7 @@ def build_retriever(llm, vectorstore, docstore):
 
         return do_retrieve
 
-    extract_search_terms = RunnableParallel(
-        input=RunnablePassthrough(),
-        search_terms=query_analyzer,
-    )
-
+    # 4. Joing together query analysis and retrieval
     retriever_chain = extract_search_terms | RunnablePassthrough.assign(
         documents=itemgetter("search_terms")
         | RunnableLambda(retrieve_with_filter(filtered_retriever))
