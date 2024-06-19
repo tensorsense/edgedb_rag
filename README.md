@@ -1,192 +1,186 @@
-# EdgeDB Retrieval Augmented Generator 🦙
+# EdgeDB Retrieval Augmented Generator 🦜
 
-## Overview
+## Getting started
 
-### 1. Indexing
+1. Install dependencies: `pip3 install -r requirements.txt`
+2. Set your `OPENAI_API_KEY` in the environment, if necessary.
+3. Prepare the docs in Markdown format. Split longer documents into sections, so that each documents covers one specific concept.
+4. Prepare the metadata file. Use the following JSON lines format: 
 
-**For every document** in the library:
+	`{"url":"relative/path/to/doc.md","category":"edgedb_general"}`
+	
+	The current list of categories goes like this:
+	
+	- `edgeql_and_sdl`
+	- `ddl`
+	- `integrations`
+	- `edgedb_general`
+	- `other`
 
-1. Assign section based on its contents such as "EdgeQL and SDL", "DDL", "Integrations" etc.
-2. Remove code snippets and calculate embeddings of what remains.
-3. Store embeddings in vector store. Put section and link to the full (text_code) document into metadata.
+4. See `build_rag.ipynb` for a step-by-step configuration guide.
+5. See `demo.py` for an example chatbot implementation with answer streaming.
 
-**For a query**:
+## System overview
 
-1. Using an LLM infer the section in which the answer to the query is most likely to be.
-2. Filter stored embeddings that belong to that section.
-3. Embed the query and perform vector search on filtered embeddings.
-4. For every embedding that gets matched, get the full document that it links to.
+### 1. Index
 
-![](assets/edgedb_index.png)
+The index consists of two components:
 
-### 2. Generation
+- vectorstore to store document embeddings and perform vector search.
+- docstore to store full documents.
 
-1. Run documents retrieved on the previous step through the LLM. Ask it to determine whether each of them is relevant to the query.
-2. Remove documents that were classified as irrelevant.
-3. With remaining documents as context, use LLM to answer the query based only on information that is present in them.
-4. Finally, ask an LLM to validate whether the answer generated on the previous step is faithful to the documents that were given as context.
-5. If the answer was classified as faithful, return it. Otherwise replace it with a fail message.
+To build the index, we need to have the documents stored as Markdown files, as well as the metadata JSON file. **For every document in metadata file**:
 
-![](assets/edgedb_gen.png)
+1. Load the document.
+2. Calculate an embedding and store in the vectorstore.
+3. Store the original full document in the docstore (represented by a JSON file).
 
-## Setup
+### 2. Conversational RAG
 
-1. Install requirements
+This is the backbone of the chatbot application. It is represented by a LangChain chain that takes each user message through multiple processing stages before generating a response.
 
-```bash
-pip3 install requirements.txt
-```
+The stages include:
 
-2. Configure `OPENAI_API_KEY` in the environment.
+1. **Contextualization**: Turning a message into a search query using chat history.
+2. **Query analysis**: Breaking down the search query into a similarity search part and a filter.
+3. **Retrieval**: Using vectorstore to retrieve relevant documents with similarity search.
+4. **Generation**: Producing the final answer based on documents and chat history.
 
-## Configure LLMs
+Stages 1, 2 and 4 perform one LLM request each, with stage 4 doing the heavy lifting of synthesizing the answer.
 
-```python
-from src.generator_builder import LLMConfig
+## Integration steps
 
-llms = LLMConfig.from_azure_deployments(
-    light="gpt-35-turbo-1106",
-    heavy="gpt-4-1106",
-    embedding="text-embedding-ada-002",
-    api_version="2023-07-01-preview",
-)
-```
+### Initialization
 
-We're using three different text models within the pipeline.
+1. Build the index:
 
-1. `light` (e.g. `gpt-35-turbo` or a fine-tune) is used for query rewriting, context filtering and answer validation.
-2. `heavy` (e.g. `gpt-4`) is used for final answer generation. It is also used as a fallback in case `light` fails to adhere to the output structure.
-3. `embedding` is a Sentence Transformer model used to calculate embeddings for documents and queries.
+    ```python
+    index = Index.from_metadata(
+        metadata_path=Path("resources/doc_metadata.jsonl"),
+        lib_path=Path("../docs_md"),
+        persist_path=persist_path,
+        embedding_function=embedding_function,
+    )
+    ```
 
-Note that we're using LlamaIndex and LangChain within the pipeline, and each of them uses their own abstractions for the models.
+2. Use index to build a retriever
 
-Finally, set `embed_model` and `llm` to be used globally across LlamaIndex by default.
-In particular, they are used to calculate query embeddings and refine context during generation.
+    ```python
+    retriever = build_retriever(
+        llm=llm, vectorstore=index.vectorstore, docstore=index.docstore
+    )
+    ```
 
-```python
-from llama_index.core import Settings
+3. Set up a history callable. 
+   The RAG itself does not store or handle chat history in any way. Instead it calls this callable with arguments specified in the config to get relevant chat history for every generation.
 
-Settings.embed_model = llms.embed_model
-Settings.llm = llms.llamaindex_light
-```
+    ```python
+    def parse_history(raw_history):
+        # parses message history from the list of pairs of strings
+        history = ChatMessageHistory()
+        for human, ai in raw_history:
+            history.add_user_message(human)
+            history.add_ai_message(ai)
 
-## Build the index
+        return history
 
-```python
-from src.index_builder import build_index
-
-index, full_nodes_dict = build_index(
-    lib_path = Path("../../docs_md").resolve()
-    persist_path = Path("index_storage").resolve(),
-    collection_name = "dev1",
-)
-```
-
-- `lib_path` is a directory that contains Markdown chunks of documentation.
-- `persist_path` is a directory where both ChromaDB and LlamaIndex are storing documents and their embeddings.
-- `collection_name` is for ChromaDB to identify embeddings that belong to this particular index.
-
-If `persist_path` exists, the script will attempt to load the index from there. Otherwise, it will build one from scratch.
-
-- ChromaDB only stores document embeddings and metadata, but not the original text.
-- Before calculating embeddings, we remove code snippets from text. We keep original (text + code) documents in the `full_nodes_dict`.
-- `index` is a LlamaIndex object that talks to ChromaDB to perform embedding seach and metadata filtering, and then fetches the documents based on the output.
-
-## Build the generator
-
-```python
-from src.generator_builder import build_generator
-
-generator = build_generator(
-    index=index, full_nodes_dict=full_nodes_dict, llm_config=llms
-)
-```
-
-`build_generator` is going to produce a LlamaIndex `ChatEngine`.
-
-It uses one more LLM call to condence previous chat history together with the last user message to form a single search query.
-It then runs that query through the RAG system to generate an answer.
-
-## Run a query
-
-```python
-response = generator.chat(message="Tell me about a basic select", chat_history=[])
-```
-
-In order to add extra chat history, first wrap it into a `ChatMessage`.
-Note that, since this is a Pydantic object, it can be loaded directly from JSON using `.parse_raw` as well.
-
-```python
-ChatMessage(
-    role=MessageRole.ASSISTANT,
-    content="A basic `select` in EdgeDB is a command used to retrieve or compute a set of values from the database. \
-    It can be used to select primitive values, objects, or computed results.",
-),
-```
-
-Next, add chat history to the call together with the followup message.
-
-```python
-response = generator.chat(
-    chat_history=[
-        ChatMessage(
-            role=MessageRole.USER,
-            content="Tell me about a basic select",
+    # description parse_history arguments
+    history_factory_config=[
+        ConfigurableFieldSpec(
+            id="raw_history",
+            annotation=List,
+            name="Raw chat message history",
+            description="List of messages coming from frontend",
+            default=[],
+            is_shared=True,
         ),
-        ChatMessage(
-            role=MessageRole.ASSISTANT,
-            content="A basic `select` in EdgeDB is a command used to retrieve or compute a set of values from the database. \
-            It can be used to select primitive values, objects, or computed results.",
-        ),
-    ],
-    message="What about insert?",
-)
-```
+    ]
+    ```
 
-## Run evaluation
+    ```python
+    # example call with this setup
+    response = generator.stream(
+        {"input": question},
+        config={"configurable": {"raw_history": history}},  # this is where we attach raw history coming from the frontend
+    )
+    ```
 
-1. Run inference and store the results in `PydanticResponse`.
+4. Use the retriever and the history callable to build the generator
 
-```python
-from src.eval import PydanticResponse
+    ```python
+    generator = build_generator(
+        llm=llm,
+        retriever=retriever,
+        get_session_history_callable=parse_history,
+        history_factory_config=history_factory_config,
+    )
+    ```
 
-response = PydanticResponse.from_llamaindex_response(
-    query=query,
-    llamaindex_response=generator.query(query),
-)
-```
+### Generating answers
 
-There's a conveniece function named `run_queries` that runs an array of queries sequentially and stores the results in a JSON lines file.
+1. Use LangChain's `stream` to get a streaming response.
 
-```python
-from src.eval import run_queries
-from datetime import datetime
+    - Make sure to pass in the newest user message, as well as previous chat history.
+    - Using chat history enables the chatbot to handle followup question and have multi-turn conversations.
+    - The chatbot searches for documents relevant to the latest message every time before generating the answer.
 
-timestamp = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
-responses = run_queries(generator, queries, Path(f"eval_{timestamp}.jsonl").resolve())
-```
+    ```python
+    response = generator.stream(
+        {"input": question},
+        config={"configurable": {"raw_history": history}},
+    )
+    ```
 
-2. In order to do a side-by-side comparison, load the results into a pandas dataframe.
+2. Iterate over the response:
 
-```python
-import pandas as pd
+    ```python
+    for segment in response:
+        # deal with the answer
+    ```
 
-df1 = pd.read_json(path1, lines=True)
-df2 = pd.read_json(path2, lines=True)
+### Response structure
 
-eval_df = pd.merge(left=df1[["query", "response"]], right=df2[["query", "response"]], how="inner", on="query", suffixes=["_1", "_2"])
-```
-
-3. To evaluate faithfullness and relevancy scores, create an `Evaluator` instance.
-
-```python
-from src.eval import Evaluator
-
-evaluator = Evaluator(llm=llms.llamaindex_light)
-```
-
-`.evaluate_response` expects a `PydanticReponse` object. It proceeds to evaluate faithfulness, answer relevancy and context relevancy using an LLM.
+The overall structure of the response is this:
 
 ```python
-eval_result = evaluator.evaluate_response(response=responses)
+{
+	'input': 'In TypeScript, how do I do an insert?',
+	'chat_history': [],
+	'retrieval_result': {
+		'input': 'In TypeScript, how do I do an insert?',
+		'search_terms': Search(
+			query='insert in TypeScript',
+			category='integrations'
+		),
+		'documents': [
+			Document(
+				page_content='Full text of the doc',
+				metadata={
+					'source':'path/to/doc.md',
+					'category': 'integrations'
+				}
+			),
+		]
+	},
+	'answer': QuotedAnswer(
+		answer='To perform an insert in TypeScript using EdgeDB...',
+		citations=[
+			Citation(
+				source_id=0,
+				quote='Verbatim quote from the doc')
+			]
+	)
+}
 ```
+
+Note Pydantic types used by LangChain under the hood.
+
+```python
+from langchain_core.documents import Document
+from src.core.retriever import Search
+from src.core.generator import Citation, QuotedAnswer
+```
+
+However, when streaming you are not going to get this entire dictionary all at once. LangChain is going to stream the output of the query analysis first, then proceed to stream the answer.
+
+For an example of handling LangChain streaming output see `demo.py`.

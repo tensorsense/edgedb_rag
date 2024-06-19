@@ -1,172 +1,126 @@
-from llama_index.core.indices.vector_store.retrievers import VectorIndexAutoRetriever
-from llama_index.core.vector_stores.types import MetadataInfo, VectorStoreInfo
-
-# from llama_index.core.indices.vector_store.retrievers.auto_retriever.prompts import (
-#     PREFIX,
-#     EXAMPLES,
-#     SUFFIX,
-# )
-
-from llama_index.core.llms import LLM
-from llama_index.core.schema import BaseNode
-from llama_index.core.base.base_retriever import BaseRetriever
-from llama_index.core.prompts.base import PromptTemplate
-from llama_index.core.prompts.prompt_type import PromptType
-from llama_index.core.retrievers import RecursiveRetriever
-from llama_index.core.prompts.base import PromptTemplate
-from llama_index.core.prompts.prompt_type import PromptType
-from llama_index.core.indices.base import BaseIndex
-from llama_index.core.vector_stores.types import (
-    FilterOperator,
-    MetadataFilter,
-    MetadataInfo,
-    VectorStoreInfo,
-    VectorStoreQuerySpec,
-)
-from typing import Dict
-
-CUSTOM_META_DESCRIPTION = f"Section in which the documentation page is found. Can be one of 'edgeql_and_sdl', 'edgedb_general', 'ddl', 'integrations' or 'other'."
-
-VECTOR_STORE_INFO = VectorStoreInfo(
-    content_info="Documentation for EdgeDB database.",
-    metadata_info=[
-        MetadataInfo(
-            name="section",
-            type="str",
-            description=CUSTOM_META_DESCRIPTION,
-        ),
-    ],
+from typing import List, Optional
+from operator import itemgetter
+from langchain_core.documents import Document
+from langchain.retrievers.multi_vector import MultiVectorRetriever, SearchType
+from langchain_core.callbacks import CallbackManagerForRetrieverRun
+from langchain_core.pydantic_v1 import BaseModel, Field
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.runnables import (
+    RunnablePassthrough,
+    RunnableLambda,
+    RunnableParallel,
 )
 
 
-CUSTOM_PREFIX = """\
-Your goal is to structure the user's query denoted by *** to match the request schema provided below.
+system_prompt = """You are an expert at converting user questions into database queries. \
+You have access to documentation for the database called EdgeDB. \
 
-<< Structured Request Schema >>
-When responding use a markdown code snippet with a JSON object formatted in the \
-following schema:
+The documentation is divided into following sections:
+- edgeql_and_sdl: information about defining schemas and writing queries. Assume this category by default when answering questions related to these topics.
+- DDL: documentation for the low-level schema definition language.
+- Integrations: documentation related to working with EdgeDB in other programming languages such as Python, TypeScript etc. Should only be picked if the query explicitly mentions other languages.
+- edgedb_general: information about concepts in EdgeDB that aren't directly related to writing schemas and queries.
+- Other: assorted things such as changelogs.
 
-{schema_str}
+Given a question, return a list of database queries optimized to retrieve the most relevant results.
 
-edgeql_and_sdl: queries about defining a schema and querying data in EdgeDB or generally about EdgeQL and SDL languages.
-edgedb_general: queries about EdgeDB setup, general usage and administration.
-ddl: queries about DDL, EdgeDB's low-level data definition language.
-integrations: queries about EdgeDB integrations with various programming languages and frameworks.
-other: queries about EdgeDB that do not belong to any of the above categories.
-
-The query string should contain only text that is expected to match the contents of \
-documents. Any conditions in the filter should not be mentioned in the query as well.
-
-Make sure that filter only refers to attribute that exist in the data source.
-Make sure that filter takes into account the description of attribute.
-Make sure that filter is only used as needed. \
-By default, assume the query belongs to \
-edgeql_and_sdl if it mentions writing schema or query, or \
-edgedb_general otherwise. \
-
-If the user's query explicitly mentions number of documents to retrieve, set top_k to \
-that number, otherwise do not set top_k.
-
-"""
-
-example_query = "Can I cast an array to a different type?"
-
-example_output = VectorStoreQuerySpec(
-    query="cast an array to a different type",
-    filters=[
-        MetadataFilter(key="section", value="edgeql_and_sdl"),
-    ],
-)
-
-example_query_2 = "How do I create a database using CLI?"
-
-example_output_2 = VectorStoreQuerySpec(
-    query="create a database using CLI",
-    filters=[
-        MetadataFilter(key="section", value="edgedb_general"),
-    ],
-)
-
-CUSTOM_EXAMPLES = f"""\
-<< Example 1. >>
-Data Source:
-```json
-{VECTOR_STORE_INFO.json(indent=4)}
-```
-
-User Query:
-{example_query}
-
-Structured Request:
-```json
-{example_output.json()}
+If there are acronyms or words you are not familiar with, do not try to rephrase them."""
 
 
-<< Example 2. >>
-Data Source:
-```json
-{VECTOR_STORE_INFO.json(indent=4)}
-```
+# type used to prompt and verify structured output from the LLM
+class Search(BaseModel):
+    """Search over documentation for EdgeDB database."""
 
-User Query:
-{example_query_2}
-
-Structured Request:
-```json
-{example_output_2.json()}
-
-```
-""".replace(
-    "{", "{{"
-).replace(
-    "}", "}}"
-)
-
-
-CUSTOM_SUFFIX = """
-
-Data Source:
-```json
-{info_str}
-```
-
-User Query:
-***{query_str}***
-
-Structured Request:
-"""
-
-
-def build_retriever(
-    index: BaseIndex,
-    full_nodes_dict: Dict[str, BaseNode],
-    llm: LLM,
-    verbose: bool = True,
-    top_k: int = 10,
-) -> BaseRetriever:
-
-    retriever = VectorIndexAutoRetriever(
-        index,
-        vector_store_info=VECTOR_STORE_INFO,
-        similarity_top_k=top_k,
-        verbose=verbose,
-        llm=llm,
+    query: str = Field(
+        ...,
+        description="Similarity search query applied to video transcripts.",
+    )
+    category: Optional[str] = Field(
+        None,
+        description="The section to which a piece of documentation belongs. Must be one of ['edgeql_and_sdl', 'ddl', 'integrations', 'edgedb_general', 'other'].",
     )
 
-    retriever.update_prompts(
-        {
-            "prompt": PromptTemplate(
-                template=CUSTOM_PREFIX + CUSTOM_EXAMPLES + CUSTOM_SUFFIX,
-                prompt_type=PromptType.VECTOR_STORE_QUERY,
+
+class FilteredMultiVectorRetriever(MultiVectorRetriever):
+    """Modified multi-vector retriever with filter support"""
+
+    _new_arg_supported: bool = True
+    _expects_other_args: bool = True
+
+    def _get_relevant_documents(
+        self,
+        query: str,
+        *,
+        run_manager: CallbackManagerForRetrieverRun,
+        _filter=None,
+    ) -> List[Document]:
+        """Get documents relevant to a query.
+        Args:
+            query: String to find relevant documents for
+            run_manager: The callbacks handler to use
+        Returns:
+            List of relevant documents
+        """
+
+        _filter = _filter if _filter is not None else {}
+        if self.search_type == SearchType.mmr:
+            sub_docs = self.vectorstore.max_marginal_relevance_search(
+                query, filter=_filter, **self.search_kwargs
             )
-        }
+        else:
+            sub_docs = self.vectorstore.similarity_search(
+                query, filter=_filter, **self.search_kwargs
+            )
+
+        # We do this to maintain the order of the ids that are returned
+        ids = []
+        for d in sub_docs:
+            if self.id_key in d.metadata and d.metadata[self.id_key] not in ids:
+                ids.append(d.metadata[self.id_key])
+        docs = self.docstore.mget(ids)
+        return [d for d in docs if d is not None]
+
+
+def build_retriever(llm, vectorstore, docstore):
+    # 1. Build a query analysis subchain (query -> similarity search query + filter)
+    prompt = ChatPromptTemplate.from_messages(
+        [
+            ("system", system_prompt),
+            ("human", "{question}"),
+        ]
     )
 
-    recursive_retriever = RecursiveRetriever(
-        "vector",
-        retriever_dict={"vector": retriever},
-        node_dict=full_nodes_dict,
-        verbose=False,
+    structured_llm = llm.with_structured_output(Search)
+    query_analyzer = {"question": RunnablePassthrough()} | prompt | structured_llm
+
+    extract_search_terms = RunnableParallel(
+        input=RunnablePassthrough(),
+        search_terms=query_analyzer,
     )
 
-    return recursive_retriever
+    # 2. Create a retriever
+    filtered_retriever = FilteredMultiVectorRetriever(
+        vectorstore=vectorstore,
+        docstore=docstore,
+        id_key="doc_id",
+    )
+
+    # 3. Create a wrapper that plugs query analysis output into the retriever
+    def retrieve_with_filter(retreiver_chain):
+        def do_retrieve(search):
+            if search.category:
+                return retreiver_chain.invoke(
+                    search.query, _filter={"category": {"$eq": search.category}}
+                )
+            else:
+                return retreiver_chain.invoke(search.query)
+
+        return do_retrieve
+
+    # 4. Joing together query analysis and retrieval
+    retriever_chain = extract_search_terms | RunnablePassthrough.assign(
+        documents=itemgetter("search_terms")
+        | RunnableLambda(retrieve_with_filter(filtered_retriever))
+    )
+
+    return retriever_chain
