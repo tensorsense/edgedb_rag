@@ -11,14 +11,17 @@ from langchain_community.chat_message_histories import ChatMessageHistory
 from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.runnables.utils import ConfigurableFieldSpec
 
-set_debug(False)
-_ = load_dotenv(find_dotenv())
-sys.path.append(Path("src").resolve().as_posix())
+# housekeeping
+set_debug(False)  # set langchain verbosity
+_ = load_dotenv(find_dotenv())  # load API keys from the .env file
+sys.path.append(Path("src").resolve().as_posix())  # fix pythonpath
 
+# import component factories
 from src.core.index import Index, ID_KEY
 from src.core.retriever import build_retriever
 from src.core.generator import build_generator
 
+# configure LLMs and the embedding model
 llm = AzureChatOpenAI(
     temperature=0.0,
     azure_deployment="gpt4o",
@@ -30,6 +33,7 @@ embedding_function = AzureOpenAIEmbeddings(
     azure_deployment="text-embedding-ada-002", api_version="2023-07-01-preview"
 )
 
+# 1. Build or load index
 persist_path = Path("index_storage").resolve()
 
 if persist_path.exists():
@@ -45,11 +49,13 @@ else:
         embedding_function=embedding_function,
     )
 
+# 2. Use index to build a retriever
 retriever = build_retriever(
     llm=llm, vectorstore=index.vectorstore, docstore=index.docstore
 )
 
 
+# 3. Set up history parser for Gradio chat history management
 def parse_history(raw_history):
     history = ChatMessageHistory()
     for human, ai in raw_history:
@@ -59,6 +65,7 @@ def parse_history(raw_history):
     return history
 
 
+# 4. Build the generator
 generator = build_generator(
     llm=llm,
     retriever=retriever,
@@ -77,6 +84,8 @@ generator = build_generator(
 
 
 def build_message(message_parts):
+    """Format the answer from parts that already got streamed"""
+
     message = ""
     message += "Looking for: " + message_parts["search_query"]
     message += (
@@ -98,12 +107,15 @@ def build_message(message_parts):
 
 
 def generate(question: str, history):
+    """Function for Gradio to use to create a response to user message."""
 
+    # 1. Start response generation process
     response = generator.stream(
         {"input": question},
         config={"configurable": {"raw_history": history}},
     )
 
+    # 2. Create dummies for all response parts that we are going to display
     message_parts = {
         "search_query": "",
         "search_category": "",
@@ -112,7 +124,10 @@ def generate(question: str, history):
         "all_sources": "",
     }
 
+    # 3. Stream the response
     for segment in response:
+
+        # a. Extract query analysis results and retrieved documents
         if "retrieval_result" in segment:
             if "documents" in segment["retrieval_result"]:
                 document_part = ""
@@ -132,6 +147,7 @@ def generate(question: str, history):
                         "search_terms"
                     ].category
 
+        # b. Extract answer and citations
         if "answer" in segment:
             message_parts["answer"] = segment["answer"].answer
 
@@ -143,6 +159,7 @@ def generate(question: str, history):
 
                 message_parts["citations"] = citation_part
 
+        # c. Assemble the current state of the message and send it to Gradio
         yield build_message(message_parts)
 
 
