@@ -57,6 +57,7 @@ retriever = build_retriever(
 
 # 3. Set up history parser for Gradio chat history management
 def parse_history(raw_history):
+    # parses message history from the list of pairs of strings
     history = ChatMessageHistory()
     for human, ai in raw_history:
         history.add_user_message(human)
@@ -71,7 +72,7 @@ generator = build_generator(
     retriever=retriever,
     get_session_history_callable=parse_history,
     history_factory_config=[
-        ConfigurableFieldSpec(
+        ConfigurableFieldSpec(  # description parse_history arguments
             id="raw_history",
             annotation=List,
             name="Raw chat message history",
